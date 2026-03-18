@@ -31,6 +31,11 @@ int main(void)
     bool ok = wamr_init();
     ASSERT(ok, "wamr_init");
 
+    /* ---- version string ---- */
+    const char *ver = wamr_get_version_string();
+    ASSERT(ver != NULL, "wamr_get_version_string");
+    printf("  WAMR: %s\n", ver);
+
     /* ---- load module ---- */
     memset(error_buf, 0, sizeof(error_buf));
     wamr_module_t module = wamr_load_module(add_wasm_data, add_wasm_size,

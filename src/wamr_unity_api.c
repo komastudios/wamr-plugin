@@ -11,6 +11,7 @@
 
 bool wamr_init(void) { return false; }
 void wamr_destroy(void) { }
+const char *wamr_get_version_string(void) { return "stub (WAMR not available)"; }
 
 wamr_module_t wamr_load_module(const uint8_t *wasm_bytes, uint32_t size,
                                char *error_buf, uint32_t error_buf_size)
@@ -83,6 +84,46 @@ bool wamr_init(void)
 void wamr_destroy(void)
 {
     wasm_runtime_destroy();
+}
+
+/* --- Version info ---------------------------------------------------- */
+
+static char s_version_string[128] = { 0 };
+
+const char *wamr_get_version_string(void)
+{
+    if (s_version_string[0] != '\0')
+        return s_version_string;
+
+    uint32_t major, minor, patch;
+    wasm_runtime_get_version(&major, &minor, &patch);
+
+    /* Build list of supported running modes */
+    char modes[64] = { 0 };
+    int  pos = 0;
+
+    typedef struct { RunningMode mode; const char *name; } mode_entry;
+    static const mode_entry entries[] = {
+        { Mode_Interp,         "interp" },
+        { Mode_Fast_JIT,       "fast-jit" },
+        { Mode_LLVM_JIT,       "llvm-jit" },
+        { Mode_Multi_Tier_JIT, "multi-tier-jit" },
+    };
+
+    for (unsigned i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
+        if (wasm_runtime_is_running_mode_supported(entries[i].mode)) {
+            if (pos > 0)
+                pos += snprintf(modes + pos, sizeof(modes) - pos, ", ");
+            pos += snprintf(modes + pos, sizeof(modes) - pos, "%s",
+                            entries[i].name);
+        }
+    }
+
+    snprintf(s_version_string, sizeof(s_version_string),
+             "%u.%u.%u (%s)", major, minor, patch,
+             pos > 0 ? modes : "no runtime modes");
+
+    return s_version_string;
 }
 
 /* --- Module loading -------------------------------------------------- */

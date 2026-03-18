@@ -43,6 +43,11 @@ typedef void *wamr_func_t;
 WAMR_API bool     wamr_init(void);
 WAMR_API void     wamr_destroy(void);
 
+/* --- Version info ---
+ * Returns a string like "2.4.4 (interp, fast-jit)".
+ * The pointer is valid for the lifetime of the process. */
+WAMR_API const char *wamr_get_version_string(void);
+
 /* --- Module loading ---
  * wasm_bytes are copied internally; the caller may free them after this call.
  * Returns NULL on failure (error written to error_buf). */
