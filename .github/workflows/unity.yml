@@ -34,7 +34,7 @@ jobs:
             artifact: "linux-x64"
             os: ubuntu-22.04
             desktop: true
-            flags: "-GNinja -DWAMR_BUILD_FAST_JIT=${{env.WAMR_FAST_JIT}}"
+            flags: "-GNinja"
             test: true
           - name: "macOS (Clang)"
             artifact: "macos-universal"
@@ -190,6 +190,7 @@ jobs:
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
+          ${{ matrix.desktop && format('-DWAMR_BUILD_FAST_JIT={0}', env.WAMR_FAST_JIT) || '' }}
           ${{ matrix.flags }}
 
       # --- Android ---
