@@ -189,27 +189,13 @@ jobs:
         if: matrix.universal
         run: cmake --install build-x86_64 --config ${{env.BUILD_TYPE}} --prefix dist-x86_64
 
-      - name: Install binaryen (arm64 - Universal)
-        if: matrix.universal
-        run: >-
-          cmake -DCMAKE_INSTALL_PREFIX=dist-arm64
-          -DCOMPONENT=Unspecified
-          -P build-arm64/binaryen/cmake_install.cmake
-
-      - name: Install binaryen (x86_64 - Universal)
-        if: matrix.universal
-        run: >-
-          cmake -DCMAKE_INSTALL_PREFIX=dist-x86_64
-          -DCOMPONENT=Unspecified
-          -P build-x86_64/binaryen/cmake_install.cmake
-
       - name: Create universal binary
         if: matrix.universal
         run: |
           mkdir -p dist/lib dist/include
           lipo -create dist-arm64/lib/libwamr-static.a dist-x86_64/lib/libwamr-static.a -output dist/lib/libwamr-static.a
           lipo -create dist-arm64/lib/libwamr.dylib dist-x86_64/lib/libwamr.dylib -output dist/lib/libwamr.dylib
-          lipo -create dist-arm64/lib/libbinaryen.dylib dist-x86_64/lib/libbinaryen.dylib -output dist/lib/libbinaryen.dylib
+          lipo -create build-arm64/binaryen/lib/libbinaryen.dylib build-x86_64/binaryen/lib/libbinaryen.dylib -output dist/lib/libbinaryen.dylib
           cp dist-arm64/include/wamr_unity_api.h dist/include/
           lipo -info dist/lib/libwamr-static.a
           lipo -info dist/lib/libwamr.dylib
@@ -266,10 +252,16 @@ jobs:
 
       - name: Install binaryen (desktop)
         if: "matrix.desktop && !matrix.universal"
-        run: >-
-          cmake -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
-          -DCOMPONENT=Unspecified
-          -P build/binaryen/cmake_install.cmake
+        shell: bash
+        run: |
+          mkdir -p dist/lib dist/bin
+          if [ -f build/binaryen/lib/libbinaryen.so ]; then
+            cp build/binaryen/lib/libbinaryen.so dist/lib/
+          elif [ -f build/binaryen/lib/libbinaryen.dylib ]; then
+            cp build/binaryen/lib/libbinaryen.dylib dist/lib/
+          elif [ -f build/binaryen/bin/binaryen.dll ]; then
+            cp build/binaryen/bin/binaryen.dll dist/bin/
+          fi
 
       - name: Install (iOS)
         if: matrix.ios
