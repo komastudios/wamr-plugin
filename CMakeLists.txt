@@ -114,6 +114,25 @@ else()
         endif()
     endif()
 
+    # WAMR's target arch auto-detection only checks arm64|aarch64 and then
+    # falls back to pointer size, which picks X86_64/X86_32 when cross-
+    # compiling for ARM. Set it explicitly for cross-compilation targets.
+    if(NOT DEFINED WAMR_BUILD_TARGET)
+        if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
+            set(WAMR_BUILD_TARGET "AARCH64")
+        elseif(${CMAKE_SYSTEM_NAME} MATCHES "Android")
+            if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+                set(WAMR_BUILD_TARGET "AARCH64")
+            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+                set(WAMR_BUILD_TARGET "ARM")
+            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+                set(WAMR_BUILD_TARGET "X86_64")
+            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
+                set(WAMR_BUILD_TARGET "X86_32")
+            endif()
+        endif()
+    endif()
+
     # NOTE: This include() calls include_directories() globally — that's why
     # binaryen's add_subdirectory must come before this point.
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
