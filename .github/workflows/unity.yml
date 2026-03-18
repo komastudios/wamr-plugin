@@ -1,0 +1,279 @@
+name: unity
+
+on:
+  push:
+    branches: [ "unity" ]
+  pull_request:
+    branches: [ "unity" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  ZERO_AR_DATE: 1
+  SOURCE_DATE_EPOCH: 0
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell || 'bash' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- Desktop ---
+          - name: "Linux (GCC)"
+            artifact: "linux-x64"
+            os: ubuntu-22.04
+            desktop: true
+            test: true
+          - name: "macOS (Clang)"
+            artifact: "macos-universal"
+            os: macos-15
+            desktop: true
+            universal: true
+            xcode: '16.4'
+          - name: "Windows (MSVC)"
+            artifact: "windows-x64"
+            os: windows-2022
+            desktop: true
+            shell: pwsh
+            flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON"
+            test: true
+          - name: "Windows (GCC)"
+            artifact: "windows-x64-mingw"
+            os: windows-2022
+            desktop: true
+            shell: 'msys2 {0}'
+            msystem: mingw64
+            msys-env: mingw-w64-x86_64
+            test: true
+
+          # --- Android ---
+          - name: Android (arm64-v8a)
+            artifact: "android-arm64"
+            os: ubuntu-22.04
+            android: true
+            abi: "arm64-v8a"
+          - name: Android (armeabi-v7a)
+            artifact: "android-armv7"
+            os: ubuntu-22.04
+            android: true
+            abi: "armeabi-v7a"
+            flags: "-DANDROID_ARM_NEON=ON"
+          - name: Android (x86)
+            artifact: "android-x86"
+            os: ubuntu-22.04
+            android: true
+            abi: "x86"
+          - name: Android (x86_64)
+            artifact: "android-x86_64"
+            os: ubuntu-22.04
+            android: true
+            abi: "x86_64"
+
+          # --- iOS ---
+          - name: iOS
+            artifact: "ios-arm64"
+            os: macos-15
+            ios: true
+            xcode: '16.4'
+            flags: >-
+              -GXcode
+              -DCMAKE_SYSTEM_NAME=iOS
+              "-DCMAKE_OSX_ARCHITECTURES=arm64"
+              -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+              -DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO
+              -DCMAKE_IOS_INSTALL_COMBINED=NO
+              -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf
+
+          # --- Web (Emscripten) ---
+          - name: Emscripten (wasm32)
+            artifact: "emscripten-wasm"
+            os: ubuntu-22.04
+            emscripten: true
+
+    steps:
+      - name: Set up MSYS2
+        if: matrix.msystem
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: >-
+            ${{ matrix.msys-env }}-gcc
+            ${{ matrix.msys-env }}-cmake
+            ${{ matrix.msys-env }}-ninja
+
+      - name: Setup Xcode
+        if: matrix.xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.xcode }}
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Set Deterministic Environment
+        shell: bash
+        run: |
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> $GITHUB_ENV
+
+      - name: Set up NDK
+        if: matrix.android
+        uses: nttld/setup-ndk@v1
+        id: setup_ndk
+        with:
+          ndk-version: r23b
+
+      - name: Set up Emscripten
+        if: matrix.emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.8
+
+      # --- macOS universal: build arm64 + x86_64 separately, then lipo ---
+      # Binaryen requires macOS 10.15+ (C++17 std::filesystem)
+
+      - name: Configure CMake (arm64 - Universal)
+        if: matrix.universal
+        run: >-
+          cmake -S . -B build-arm64
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          -GXcode
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+          -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf
+
+      - name: Build (arm64 - Universal)
+        if: matrix.universal
+        run: cmake --build build-arm64 --config ${{env.BUILD_TYPE}}
+
+      - name: Build binaryen (arm64 - Universal)
+        if: matrix.universal
+        run: cmake --build build-arm64 --config ${{env.BUILD_TYPE}} --target binaryen
+
+      - name: Install (arm64 - Universal)
+        if: matrix.universal
+        run: cmake --install build-arm64 --config ${{env.BUILD_TYPE}} --prefix dist-arm64
+
+      - name: Configure CMake (x86_64 - Universal)
+        if: matrix.universal
+        run: >-
+          cmake -S . -B build-x86_64
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          -GXcode
+          -DCMAKE_OSX_ARCHITECTURES=x86_64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+          -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf
+
+      - name: Build (x86_64 - Universal)
+        if: matrix.universal
+        run: cmake --build build-x86_64 --config ${{env.BUILD_TYPE}}
+
+      - name: Build binaryen (x86_64 - Universal)
+        if: matrix.universal
+        run: cmake --build build-x86_64 --config ${{env.BUILD_TYPE}} --target binaryen
+
+      - name: Install (x86_64 - Universal)
+        if: matrix.universal
+        run: cmake --install build-x86_64 --config ${{env.BUILD_TYPE}} --prefix dist-x86_64
+
+      - name: Install binaryen (arm64 - Universal)
+        if: matrix.universal
+        run: >-
+          cmake -DCMAKE_INSTALL_PREFIX=dist-arm64
+          -DCOMPONENT=Unspecified
+          -P build-arm64/binaryen/cmake_install.cmake
+
+      - name: Install binaryen (x86_64 - Universal)
+        if: matrix.universal
+        run: >-
+          cmake -DCMAKE_INSTALL_PREFIX=dist-x86_64
+          -DCOMPONENT=Unspecified
+          -P build-x86_64/binaryen/cmake_install.cmake
+
+      - name: Create universal binary
+        if: matrix.universal
+        run: |
+          mkdir -p dist/lib dist/include
+          lipo -create dist-arm64/lib/libwamr-static.a dist-x86_64/lib/libwamr-static.a -output dist/lib/libwamr-static.a
+          lipo -create dist-arm64/lib/libwamr.dylib dist-x86_64/lib/libwamr.dylib -output dist/lib/libwamr.dylib
+          lipo -create dist-arm64/lib/libbinaryen.dylib dist-x86_64/lib/libbinaryen.dylib -output dist/lib/libbinaryen.dylib
+          cp dist-arm64/include/wamr_unity_api.h dist/include/
+          lipo -info dist/lib/libwamr-static.a
+          lipo -info dist/lib/libwamr.dylib
+          lipo -info dist/lib/libbinaryen.dylib
+
+      # --- Standard (Linux, Windows) ---
+
+      - name: Configure CMake (Standard)
+        if: "!matrix.android && !matrix.emscripten && !matrix.universal"
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
+          ${{ matrix.flags }}
+
+      # --- Android ---
+
+      - name: Configure CMake (Android)
+        if: matrix.android
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DANDROID_PLATFORM=16 \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_STL=none \
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.setup_ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
+            ${{ matrix.flags }}
+
+      # --- Emscripten ---
+
+      - name: Configure CMake (Emscripten)
+        if: matrix.emscripten
+        run: emcmake cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      # --- Build / Test / Install ---
+
+      - name: Build
+        if: "!matrix.universal"
+        run: cmake --build build --config Release
+
+      - name: Build binaryen (desktop)
+        if: "matrix.desktop && !matrix.universal"
+        run: cmake --build build --config Release --target binaryen
+
+      - name: Test
+        if: matrix.test
+        working-directory: build
+        run: ctest -C Release --output-on-failure
+
+      - name: Install (Standard)
+        if: "!matrix.ios && !matrix.universal"
+        run: cmake --install build --config Release --prefix dist
+
+      - name: Install binaryen (desktop)
+        if: "matrix.desktop && !matrix.universal"
+        run: >-
+          cmake -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
+          -DCOMPONENT=Unspecified
+          -P build/binaryen/cmake_install.cmake
+
+      - name: Install (iOS)
+        if: matrix.ios
+        run: cmake --build build --config Release --target install
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist

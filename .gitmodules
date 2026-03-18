@@ -1,0 +1,6 @@
+[submodule "wamr"]
+	path = wamr
+	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
+[submodule "binaryen"]
+	path = binaryen
+	url = https://github.com/WebAssembly/binaryen.git
