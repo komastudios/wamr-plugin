@@ -85,12 +85,21 @@ endif()
 set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/wamr)
 
 # ---------- WAMR build configuration ----------
-# Fast interpreter, builtin libc, no filesystem, no JIT/AOT, no threading.
+# Fast interpreter, builtin libc, no filesystem, no threading.
+# Fast JIT can be enabled via -DWAMR_BUILD_FAST_JIT=1 (desktop only).
+
+option(WAMR_BUILD_FAST_JIT "Enable WAMR fast JIT" OFF)
 
 set(WAMR_BUILD_INTERP 1)
-set(WAMR_BUILD_FAST_INTERP 1)
 set(WAMR_BUILD_AOT 0)
 set(WAMR_BUILD_JIT 0)
+
+if(WAMR_BUILD_FAST_JIT)
+    # Fast JIT implies classic interpreter (fast-interp is incompatible)
+    set(WAMR_BUILD_FAST_INTERP 0)
+else()
+    set(WAMR_BUILD_FAST_INTERP 1)
+endif()
 set(WAMR_BUILD_LIBC_BUILTIN 1)
 set(WAMR_BUILD_LIBC_WASI 0)
 set(WAMR_BUILD_MULTI_MODULE 0)
