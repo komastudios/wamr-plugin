@@ -15,6 +15,10 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     add_compile_options("-fdebug-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.")
 endif()
 
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+    add_compile_options(-Wno-shorten-64-to-32)
+endif()
+
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
     add_compile_options("/Brepro")
     add_link_options("/Brepro")
@@ -116,7 +120,9 @@ else()
 
     # WAMR's target arch auto-detection only checks arm64|aarch64 and then
     # falls back to pointer size, which picks X86_64/X86_32 when cross-
-    # compiling for ARM. Set it explicitly for cross-compilation targets.
+    # compiling for ARM. On macOS with CMAKE_OSX_ARCHITECTURES, the host
+    # CMAKE_SYSTEM_PROCESSOR (arm64 on Apple Silicon) overrides the target.
+    # Set WAMR_BUILD_TARGET explicitly for all cross-compilation scenarios.
     if(NOT DEFINED WAMR_BUILD_TARGET)
         if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
             set(WAMR_BUILD_TARGET "AARCH64")
@@ -129,6 +135,12 @@ else()
                 set(WAMR_BUILD_TARGET "X86_64")
             elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
                 set(WAMR_BUILD_TARGET "X86_32")
+            endif()
+        elseif(APPLE AND DEFINED CMAKE_OSX_ARCHITECTURES)
+            if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+                set(WAMR_BUILD_TARGET "X86_64")
+            elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+                set(WAMR_BUILD_TARGET "AARCH64")
             endif()
         endif()
     endif()
