@@ -180,6 +180,9 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
         if(UNIX)
             target_link_libraries(${TARGET_NAME} PRIVATE m)
         endif()
+        if(WIN32)
+            target_link_libraries(${TARGET_NAME} PRIVATE ntdll)
+        endif()
     endif()
 
     install(TARGETS ${TARGET_NAME}

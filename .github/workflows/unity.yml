@@ -48,16 +48,6 @@ jobs:
             shell: pwsh
             flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON"
             test: true
-          - name: "Windows (GCC)"
-            artifact: "windows-x64-mingw"
-            os: windows-2022
-            desktop: true
-            shell: 'msys2 {0}'
-            msystem: mingw64
-            msys-env: mingw-w64-x86_64
-            flags: "-GNinja"
-            test: true
-
           # --- Android ---
           - name: Android (arm64-v8a)
             artifact: "android-arm64"
@@ -103,16 +93,6 @@ jobs:
             emscripten: true
 
     steps:
-      - name: Set up MSYS2
-        if: matrix.msystem
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.msystem }}
-          install: >-
-            ${{ matrix.msys-env }}-gcc
-            ${{ matrix.msys-env }}-cmake
-            ${{ matrix.msys-env }}-ninja
-
       - name: Setup Xcode
         if: matrix.xcode
         uses: maxim-lobanov/setup-xcode@v1
