@@ -7,7 +7,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(BUILD_SHARED "Build shared library" ON)
 option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
-option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
+option(BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
 option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
 
 # Execution mode options (see https://bytecodealliance.github.io/wamr.dev/blog/introduction-to-wamr-running-modes/)
@@ -168,7 +168,7 @@ set(WAMR_BUILD_TAIL_CALL 0)
 
 # ---------- LLVM (required for AOT compiler and LLVM JIT) ----------
 
-if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
+if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     set(CMAKE_CXX_STANDARD 17)
 
     set(LLVM_SRC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/wamr/core/deps/llvm")
@@ -298,7 +298,7 @@ install(FILES src/wamr_unity_api.h DESTINATION include)
 
 # ---------- AOT compiler shared library (desktop only, requires LLVM) ----------
 
-if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
+if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     # Compiler defines matching wamr-compiler/CMakeLists.txt.
     # Scoped to aotclib/wamr_compiler only (NOT global, to avoid leaking into the runtime).
     # WASM_ENABLE_INTERP=1 + WASM_ENABLE_FAST_INTERP=0 override the runtime's
@@ -451,7 +451,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
 
     add_test(NAME test_wamr COMMAND test_wamr)
 
-    if(WAMR_BUILD_AOT_COMPILER)
+    if(BUILD_AOT_COMPILER)
         if(WAMR_ENABLE_AOT_MONOLITH)
             # Monolith: wamr shared lib already contains the AOT compiler
             add_executable(test_wamr_compiler
