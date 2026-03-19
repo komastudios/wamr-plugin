@@ -54,7 +54,8 @@ jobs:
             flags: "-GNinja"
             test: true
           - name: "macOS (Clang)"
-            artifact: "macos-arm64"
+            artifact: "macos-universal"
+            cache_key: "macos-arm64"
             os: macos-15
             desktop: true
             xcode: '16.4'
@@ -151,7 +152,7 @@ jobs:
             wamr/core/deps/llvm/build/lib
             wamr/core/deps/llvm/build/libexec
             wamr/core/deps/llvm/build/share
-          key: llvm-${{ matrix.artifact }}-${{ needs.build-llvm.outputs.llvm_branch }}
+          key: llvm-${{ matrix.cache_key || matrix.artifact }}-${{ needs.build-llvm.outputs.llvm_branch }}
           fail-on-cache-miss: true
 
       - name: Restore binaryen cache
@@ -159,7 +160,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: binaryen-install
-          key: binaryen-${{ matrix.artifact }}-${{ needs.build-binaryen.outputs.binaryen_version }}
+          key: binaryen-${{ matrix.cache_key || matrix.artifact }}-${{ needs.build-binaryen.outputs.binaryen_version }}
           fail-on-cache-miss: true
 
       # --- Standard (Linux, Windows, macOS) ---
