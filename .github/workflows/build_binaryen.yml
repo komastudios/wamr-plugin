@@ -63,7 +63,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/binaryen-install
           -DBUILD_TESTS=OFF
-          -DBUILD_STATIC_LIB=OFF
+          -DBUILD_STATIC_LIB=ON
           -DBUILD_LLVM_DWARF=ON
           -DBYN_ENABLE_LTO=OFF
           -DENABLE_WERROR=OFF

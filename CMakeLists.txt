@@ -70,42 +70,27 @@ if(WAMR_DESKTOP_BUILD)
     enable_language(CXX)
 
     if(BINARYEN_ROOT)
-        # External pre-built binaryen
-        if(WIN32)
-            find_file(BINARYEN_LIB binaryen.dll PATHS "${BINARYEN_ROOT}/bin" NO_DEFAULT_PATH)
-        else()
-            find_library(BINARYEN_LIB binaryen PATHS "${BINARYEN_ROOT}/lib" NO_DEFAULT_PATH)
-        endif()
+        # External pre-built binaryen (static library)
+        find_library(BINARYEN_LIB binaryen PATHS "${BINARYEN_ROOT}/lib" NO_DEFAULT_PATH)
         if(NOT BINARYEN_LIB)
             message(FATAL_ERROR "Cannot find binaryen library in ${BINARYEN_ROOT}")
         endif()
 
-        add_library(binaryen SHARED IMPORTED)
+        add_library(binaryen STATIC IMPORTED)
         set_target_properties(binaryen PROPERTIES IMPORTED_LOCATION "${BINARYEN_LIB}")
 
         find_program(WASM_AS_EXECUTABLE wasm-as PATHS "${BINARYEN_ROOT}/bin" NO_DEFAULT_PATH)
         if(NOT WASM_AS_EXECUTABLE)
             message(FATAL_ERROR "Cannot find wasm-as in ${BINARYEN_ROOT}/bin")
         endif()
-
-        # Install the pre-built library
-        if(WIN32)
-            install(FILES "${BINARYEN_LIB}" DESTINATION bin)
-        else()
-            install(FILES "${BINARYEN_LIB}" DESTINATION lib)
-        endif()
     else()
         # Build binaryen from source
         set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
+        set(BUILD_STATIC_LIB ON CACHE BOOL "" FORCE)
         set(BUILD_LLVM_DWARF ON CACHE BOOL "" FORCE)
         set(BYN_ENABLE_LTO OFF CACHE BOOL "" FORCE)
         set(ENABLE_WERROR OFF CACHE BOOL "" FORCE)
         add_subdirectory(binaryen EXCLUDE_FROM_ALL)
-
-        install(TARGETS binaryen
-            LIBRARY DESTINATION lib
-            RUNTIME DESTINATION bin)
     endif()
 endif()
 
