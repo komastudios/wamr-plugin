@@ -262,21 +262,11 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         list(APPEND WAMRC_COMPILE_DEFS COMPILING_WASM_RUNTIME_API=1)
     endif()
 
-    # AOT compilation sources
+    # AOT compilation sources — built in a subdirectory to isolate from
+    # directory-level compile definitions set by runtime_lib.cmake.
     set(WAMR_BUILD_WAMR_COMPILER 1)
     include(${WAMR_ROOT_DIR}/core/iwasm/compilation/iwasm_compl.cmake)
-
-    add_library(aotclib STATIC ${IWASM_COMPL_SOURCE})
-    set_target_properties(aotclib PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    target_include_directories(aotclib PRIVATE ${LLVM_INCLUDE_DIRS})
-    target_compile_definitions(aotclib PRIVATE ${WAMRC_COMPILE_DEFS})
-
-    # Disable RTTI for LLVM compatibility
-    if(MSVC)
-        target_compile_options(aotclib PRIVATE /GR-)
-    else()
-        target_compile_options(aotclib PRIVATE -fno-rtti)
-    endif()
+    add_subdirectory(cmake/aotclib)
 
     # LLVM link libraries
     if(LLVM_LINK_LLVM_DYLIB)
@@ -365,12 +355,15 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
     add_test(NAME test_wamr COMMAND test_wamr)
 
     if(WAMR_BUILD_AOT_COMPILER)
-        add_executable(test_wamr_compiler tests/test_wamr_compiler.c ${ADD_WASM_HDR})
+        add_executable(test_wamr_compiler
+            tests/test_wamr_compiler.c
+            src/wamrc_unity_api.c
+            ${ADD_WASM_HDR})
         target_include_directories(test_wamr_compiler PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR}
+            ${WAMR_ROOT_DIR}/core/iwasm/include
             ${LLVM_INCLUDE_DIRS})
-        target_compile_definitions(test_wamr_compiler PRIVATE ${WAMRC_COMPILE_DEFS})
 
         target_link_libraries(test_wamr_compiler PRIVATE
             aotclib wamr-static ${WAMRC_LINK_LLVM_LIBS})
