@@ -289,7 +289,7 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
     endif()
 
-    target_link_libraries(wamr_compiler PRIVATE aotclib wamr-static ${WAMRC_LINK_LLVM_LIBS})
+    target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMRC_LINK_LLVM_LIBS})
 
     if(NOT MSVC)
         target_link_libraries(wamr_compiler PRIVATE -lm -lpthread -ldl)
@@ -366,7 +366,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
             ${LLVM_INCLUDE_DIRS})
 
         target_link_libraries(test_wamr_compiler PRIVATE
-            aotclib wamr-static ${WAMRC_LINK_LLVM_LIBS})
+            aotclib vmlib-compiler ${WAMRC_LINK_LLVM_LIBS})
 
         if(TARGET Threads::Threads)
             target_link_libraries(test_wamr_compiler PRIVATE Threads::Threads)
