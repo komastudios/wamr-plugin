@@ -13,8 +13,6 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  ZERO_AR_DATE: 1
-  SOURCE_DATE_EPOCH: 0
   LLVM_BRANCH: llvmorg-18.1.8
 
 jobs:
@@ -105,6 +103,9 @@ jobs:
     name: "AOT (${{ matrix.name }})"
     needs: build-llvm
     runs-on: ${{ matrix.os }}
+    env:
+      ZERO_AR_DATE: 1
+      SOURCE_DATE_EPOCH: 0
     defaults:
       run:
         shell: ${{ matrix.shell || 'bash' }}
