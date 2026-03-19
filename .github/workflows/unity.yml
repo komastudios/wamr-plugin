@@ -51,6 +51,7 @@ jobs:
             os: ubuntu-22.04
             desktop: true
             flags: "-GNinja"
+            jit_flags: "-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON"
             test: true
           - name: "macOS arm64"
             artifact: "macos-arm64"
@@ -58,18 +59,21 @@ jobs:
             desktop: true
             xcode: '16.4'
             flags: "-DCMAKE_OSX_ARCHITECTURES=arm64"
+            jit_flags: "-DBUILD_JIT=ON -DBUILD_AOT=ON"
           - name: "macOS x86_64"
             artifact: "macos-x64"
             os: macos-15
             desktop: true
             xcode: '16.4'
             flags: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
+            jit_flags: "-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON"
           - name: "Windows (MSVC)"
             artifact: "windows-x64"
             os: windows-2022
             desktop: true
             shell: pwsh
             flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON"
+            jit_flags: "-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON"
             test: true
           # --- Android ---
           - name: Android (arm64-v8a)
@@ -176,7 +180,7 @@ jobs:
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
-          ${{ matrix.desktop && '-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON' || '' }}
+          ${{ matrix.jit_flags || '' }}
           ${{ matrix.desktop && '-DBUILD_AOT_COMPILER=ON' || '' }}
           ${{ matrix.desktop && format('-DBINARYEN_ROOT={0}/binaryen-install', github.workspace) || '' }}
           ${{ matrix.flags }}
