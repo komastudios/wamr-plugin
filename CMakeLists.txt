@@ -7,7 +7,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(BUILD_SHARED "Build shared library" ON)
 option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
-option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler shared library (requires LLVM)" OFF)
+option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
+option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
 
 # ---------- Deterministic build flags (matches lz4/xxHash/BLAKE3 pattern) ----------
 
@@ -312,32 +313,41 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     include(${WAMR_ROOT_DIR}/core/iwasm/compilation/iwasm_compl.cmake)
     add_subdirectory(cmake/aotclib)
 
-    # wamr_compiler shared library
-    add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
-    target_include_directories(wamr_compiler PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${WAMR_ROOT_DIR}/core/iwasm/include
-        ${LLVM_INCLUDE_DIRS})
-    target_compile_definitions(wamr_compiler PRIVATE WAMR_UNITY_EXPORT ${WAMRC_COMPILE_DEFS})
-    set_property(TARGET wamr_compiler PROPERTY C_VISIBILITY_PRESET hidden)
-    set_target_properties(wamr_compiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    if(WAMR_ENABLE_AOT_MONOLITH)
+        # Monolith mode: link AOT compiler into the main wamr shared library
+        if(NOT BUILD_SHARED)
+            message(FATAL_ERROR "WAMR_ENABLE_AOT_MONOLITH=ON requires BUILD_SHARED=ON")
+        endif()
+        target_sources(wamr PRIVATE src/wamrc_unity_api.c)
+        target_link_libraries(wamr PRIVATE aotclib vmlib-compiler)
+    else()
+        # Separate wamr_compiler shared library
+        add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
+        target_include_directories(wamr_compiler PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${WAMR_ROOT_DIR}/core/iwasm/include
+            ${LLVM_INCLUDE_DIRS})
+        target_compile_definitions(wamr_compiler PRIVATE WAMR_UNITY_EXPORT ${WAMRC_COMPILE_DEFS})
+        set_property(TARGET wamr_compiler PROPERTY C_VISIBILITY_PRESET hidden)
+        set_target_properties(wamr_compiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-    if(WIN32)
-        target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
+        if(WIN32)
+            target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
+        endif()
+
+        target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
+
+        if(NOT MSVC)
+            target_link_libraries(wamr_compiler PRIVATE -lm -lpthread -ldl)
+        endif()
+        if(WIN32)
+            target_link_libraries(wamr_compiler PRIVATE ntdll)
+        endif()
+
+        install(TARGETS wamr_compiler
+            LIBRARY DESTINATION lib
+            RUNTIME DESTINATION bin)
     endif()
-
-    target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
-
-    if(NOT MSVC)
-        target_link_libraries(wamr_compiler PRIVATE -lm -lpthread -ldl)
-    endif()
-    if(WIN32)
-        target_link_libraries(wamr_compiler PRIVATE ntdll)
-    endif()
-
-    install(TARGETS wamr_compiler
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin)
 
     install(FILES src/wamrc_unity_api.h DESTINATION include)
 endif()
@@ -403,27 +413,36 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
     add_test(NAME test_wamr COMMAND test_wamr)
 
     if(WAMR_BUILD_AOT_COMPILER)
-        add_executable(test_wamr_compiler
-            tests/test_wamr_compiler.c
-            src/wamrc_unity_api.c
-            ${ADD_WASM_HDR})
-        target_include_directories(test_wamr_compiler PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_BINARY_DIR}
-            ${WAMR_ROOT_DIR}/core/iwasm/include
-            ${LLVM_INCLUDE_DIRS})
-
-        target_link_libraries(test_wamr_compiler PRIVATE
-            aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
-
-        if(TARGET Threads::Threads)
-            target_link_libraries(test_wamr_compiler PRIVATE Threads::Threads)
-        endif()
-        if(NOT MSVC)
-            target_link_libraries(test_wamr_compiler PRIVATE -lm -lpthread -ldl)
-        endif()
-        if(WIN32)
-            target_link_libraries(test_wamr_compiler PRIVATE ntdll)
+        if(WAMR_ENABLE_AOT_MONOLITH)
+            # Monolith: wamr shared lib already contains the AOT compiler
+            add_executable(test_wamr_compiler
+                tests/test_wamr_compiler.c
+                ${ADD_WASM_HDR})
+            target_include_directories(test_wamr_compiler PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${CMAKE_CURRENT_BINARY_DIR})
+            target_link_libraries(test_wamr_compiler PRIVATE wamr)
+        else()
+            add_executable(test_wamr_compiler
+                tests/test_wamr_compiler.c
+                src/wamrc_unity_api.c
+                ${ADD_WASM_HDR})
+            target_include_directories(test_wamr_compiler PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/src
+                ${CMAKE_CURRENT_BINARY_DIR}
+                ${WAMR_ROOT_DIR}/core/iwasm/include
+                ${LLVM_INCLUDE_DIRS})
+            target_link_libraries(test_wamr_compiler PRIVATE
+                aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
+            if(TARGET Threads::Threads)
+                target_link_libraries(test_wamr_compiler PRIVATE Threads::Threads)
+            endif()
+            if(NOT MSVC)
+                target_link_libraries(test_wamr_compiler PRIVATE -lm -lpthread -ldl)
+            endif()
+            if(WIN32)
+                target_link_libraries(test_wamr_compiler PRIVATE ntdll)
+            endif()
         endif()
 
         add_test(NAME test_wamr_compiler COMMAND test_wamr_compiler)
