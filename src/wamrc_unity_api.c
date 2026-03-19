@@ -275,7 +275,7 @@ cleanup:
 void wamrc_free_aot_file(uint8_t *aot_bytes)
 {
     if (aot_bytes)
-        aot_destroy_aot_file(aot_bytes);
+        wasm_runtime_free(aot_bytes);
 }
 
 /* --- Low-level API --------------------------------------------------- */
