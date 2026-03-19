@@ -11,11 +11,11 @@ option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
 option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
 
 # Execution mode options (see https://bytecodealliance.github.io/wamr.dev/blog/introduction-to-wamr-running-modes/)
-option(WAMR_BUILD_INTERP     "Enable interpreter"                     ON)
-option(WAMR_BUILD_FAST_INTERP "Use fast interpreter (incompatible with fast JIT)" ON)
-option(WAMR_BUILD_FAST_JIT   "Enable fast JIT"                        OFF)
-option(WAMR_BUILD_JIT         "Enable LLVM JIT (requires LLVM)"       OFF)
-option(WAMR_BUILD_AOT         "Enable AOT execution"                  OFF)
+option(BUILD_INTERP      "Enable interpreter"                             ON)
+option(BUILD_FAST_INTERP "Use fast interpreter (incompatible with fast JIT)" ON)
+option(BUILD_FAST_JIT    "Enable fast JIT"                                OFF)
+option(BUILD_JIT         "Enable LLVM JIT (requires LLVM)"                OFF)
+option(BUILD_AOT         "Enable AOT execution"                           OFF)
 
 # ---------- Deterministic build flags (matches lz4/xxHash/BLAKE3 pattern) ----------
 
@@ -126,20 +126,35 @@ set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/wamr)
 #   - LLVM JIT requires AOT support
 #   - Multi-tier JIT (both JITs) requires both fast JIT + LLVM JIT
 
-if(WAMR_BUILD_FAST_JIT AND WAMR_BUILD_FAST_INTERP)
+# Resolve compatibility constraints
+if(BUILD_FAST_JIT AND BUILD_FAST_INTERP)
     message(STATUS "Fast JIT enabled — disabling fast-interp (incompatible)")
-    set(WAMR_BUILD_FAST_INTERP OFF)
+    set(BUILD_FAST_INTERP OFF)
 endif()
 
-if(WAMR_BUILD_JIT AND NOT WAMR_BUILD_AOT)
+if(BUILD_JIT AND NOT BUILD_AOT)
     message(STATUS "LLVM JIT enabled — enabling AOT (required)")
-    set(WAMR_BUILD_AOT ON)
+    set(BUILD_AOT ON)
 endif()
 
-if(WAMR_BUILD_FAST_JIT AND NOT WAMR_BUILD_INTERP)
+if(BUILD_FAST_JIT AND NOT BUILD_INTERP)
     message(STATUS "Fast JIT enabled — enabling interpreter (required)")
-    set(WAMR_BUILD_INTERP ON)
+    set(BUILD_INTERP ON)
 endif()
+
+# Map to WAMR's expected integer variables (1/0)
+macro(bool_to_int var_in var_out)
+    if(${var_in})
+        set(${var_out} 1)
+    else()
+        set(${var_out} 0)
+    endif()
+endmacro()
+bool_to_int(BUILD_INTERP      WAMR_BUILD_INTERP)
+bool_to_int(BUILD_FAST_INTERP  WAMR_BUILD_FAST_INTERP)
+bool_to_int(BUILD_FAST_JIT     WAMR_BUILD_FAST_JIT)
+bool_to_int(BUILD_JIT          WAMR_BUILD_JIT)
+bool_to_int(BUILD_AOT          WAMR_BUILD_AOT)
 
 set(WAMR_BUILD_LIBC_BUILTIN 1)
 set(WAMR_BUILD_LIBC_WASI 0)

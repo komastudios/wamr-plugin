@@ -176,9 +176,7 @@ jobs:
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
-          ${{ matrix.desktop && '-DWAMR_BUILD_FAST_JIT=ON' || '' }}
-          ${{ matrix.desktop && '-DWAMR_BUILD_JIT=ON' || '' }}
-          ${{ matrix.desktop && '-DWAMR_BUILD_AOT=ON' || '' }}
+          ${{ matrix.desktop && '-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON' || '' }}
           ${{ matrix.desktop && '-DWAMR_BUILD_AOT_COMPILER=ON' || '' }}
           ${{ matrix.desktop && format('-DBINARYEN_ROOT={0}/binaryen-install', github.workspace) || '' }}
           ${{ matrix.flags }}
