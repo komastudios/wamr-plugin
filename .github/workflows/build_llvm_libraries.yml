@@ -107,5 +107,5 @@ jobs:
       - name: Build LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         shell: bash
-        run: python3 ./wamr/build-scripts/build_llvm.py ${{ matrix.extra_cmake_flags && format('--extra-cmake-flags "{0}"', matrix.extra_cmake_flags) || '' }}
+        run: python3 ./wamr/build-scripts/build_llvm.py --extra-cmake-flags="${{ matrix.extra_cmake_flags || '' }}"
         timeout-minutes: 120
