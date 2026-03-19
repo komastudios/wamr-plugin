@@ -23,9 +23,16 @@ jobs:
     uses: ./.github/workflows/build_llvm_libraries.yml
 
   # ---------------------------------------------------------------
+  # Build binaryen (cached, shared with unity_aot.yml)
+  # ---------------------------------------------------------------
+  build-binaryen:
+    uses: ./.github/workflows/build_binaryen.yml
+
+  # ---------------------------------------------------------------
   # Build WAMR runtime + binaryen for all platforms
   # ---------------------------------------------------------------
   build:
+    needs: build-binaryen
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     env:
@@ -47,10 +54,9 @@ jobs:
             flags: "-GNinja"
             test: true
           - name: "macOS (Clang)"
-            artifact: "macos-universal"
+            artifact: "macos-arm64"
             os: macos-15
             desktop: true
-            universal: true
             xcode: '16.4'
           - name: "Windows (MSVC)"
             artifact: "windows-x64"
@@ -133,74 +139,26 @@ jobs:
         with:
           version: 3.1.8
 
-      # --- macOS universal: build arm64 + x86_64 separately, then lipo ---
-      # Binaryen requires macOS 10.15+ (C++17 std::filesystem)
+      # --- Restore pre-built binaryen (desktop only) ---
 
-      - name: Configure CMake (arm64 - Universal)
-        if: matrix.universal
-        run: >-
-          cmake -S . -B build-arm64
-          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-          -GXcode
-          -DCMAKE_OSX_ARCHITECTURES=arm64
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
-          -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf
+      - name: Restore binaryen cache
+        if: matrix.desktop
+        uses: actions/cache/restore@v5
+        with:
+          path: binaryen-install
+          key: binaryen-${{ matrix.artifact }}-${{ needs.build-binaryen.outputs.binaryen_version }}
+          fail-on-cache-miss: true
 
-      - name: Build (arm64 - Universal)
-        if: matrix.universal
-        run: cmake --build build-arm64 --config ${{env.BUILD_TYPE}} --parallel
-
-      - name: Build binaryen (arm64 - Universal)
-        if: matrix.universal
-        run: cmake --build build-arm64 --config ${{env.BUILD_TYPE}} --parallel --target binaryen
-
-      - name: Install (arm64 - Universal)
-        if: matrix.universal
-        run: cmake --install build-arm64 --config ${{env.BUILD_TYPE}} --prefix dist-arm64
-
-      - name: Configure CMake (x86_64 - Universal)
-        if: matrix.universal
-        run: >-
-          cmake -S . -B build-x86_64
-          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-          -GXcode
-          -DCMAKE_OSX_ARCHITECTURES=x86_64
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
-          -DCMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT=dwarf
-
-      - name: Build (x86_64 - Universal)
-        if: matrix.universal
-        run: cmake --build build-x86_64 --config ${{env.BUILD_TYPE}} --parallel
-
-      - name: Build binaryen (x86_64 - Universal)
-        if: matrix.universal
-        run: cmake --build build-x86_64 --config ${{env.BUILD_TYPE}} --parallel --target binaryen
-
-      - name: Install (x86_64 - Universal)
-        if: matrix.universal
-        run: cmake --install build-x86_64 --config ${{env.BUILD_TYPE}} --prefix dist-x86_64
-
-      - name: Create universal binary
-        if: matrix.universal
-        run: |
-          mkdir -p dist/lib dist/include
-          lipo -create dist-arm64/lib/libwamr-static.a dist-x86_64/lib/libwamr-static.a -output dist/lib/libwamr-static.a
-          lipo -create dist-arm64/lib/libwamr.dylib dist-x86_64/lib/libwamr.dylib -output dist/lib/libwamr.dylib
-          lipo -create build-arm64/binaryen/lib/libbinaryen.dylib build-x86_64/binaryen/lib/libbinaryen.dylib -output dist/lib/libbinaryen.dylib
-          cp dist-arm64/include/wamr_unity_api.h dist/include/
-          lipo -info dist/lib/libwamr-static.a
-          lipo -info dist/lib/libwamr.dylib
-          lipo -info dist/lib/libbinaryen.dylib
-
-      # --- Standard (Linux, Windows) ---
+      # --- Standard (Linux, Windows, macOS) ---
 
       - name: Configure CMake (Standard)
-        if: "!matrix.android && !matrix.emscripten && !matrix.universal"
+        if: "!matrix.android && !matrix.emscripten"
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
           ${{ matrix.desktop && format('-DWAMR_BUILD_FAST_JIT={0}', env.WAMR_FAST_JIT) || '' }}
+          ${{ matrix.desktop && format('-DBINARYEN_ROOT={0}/binaryen-install', github.workspace) || '' }}
           ${{ matrix.flags }}
 
       # --- Android ---
@@ -226,7 +184,6 @@ jobs:
       # --- Build / Test / Install ---
 
       - name: Build
-        if: "!matrix.universal"
         run: cmake --build build --config Release --parallel
 
       - name: Test
@@ -235,21 +192,8 @@ jobs:
         run: ctest -C Release --output-on-failure
 
       - name: Install (Standard)
-        if: "!matrix.ios && !matrix.universal"
+        if: "!matrix.ios"
         run: cmake --install build --config Release --prefix dist
-
-      - name: Install binaryen (desktop)
-        if: "matrix.desktop && !matrix.universal"
-        shell: bash
-        run: |
-          mkdir -p dist/lib dist/bin
-          if [ -f build/binaryen/lib/libbinaryen.so ]; then
-            cp build/binaryen/lib/libbinaryen.so dist/lib/
-          elif [ -f build/binaryen/lib/libbinaryen.dylib ]; then
-            cp build/binaryen/lib/libbinaryen.dylib dist/lib/
-          elif [ -f build/binaryen/bin/binaryen.dll ]; then
-            cp build/binaryen/bin/binaryen.dll dist/bin/
-          fi
 
       - name: Install (iOS)
         if: matrix.ios

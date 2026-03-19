@@ -22,11 +22,17 @@ jobs:
     uses: ./.github/workflows/build_llvm_libraries.yml
 
   # ---------------------------------------------------------------
+  # Build binaryen (cached, shared with unity.yml)
+  # ---------------------------------------------------------------
+  build-binaryen:
+    uses: ./.github/workflows/build_binaryen.yml
+
+  # ---------------------------------------------------------------
   # Build AOT compiler + runtime
   # ---------------------------------------------------------------
   build-aot:
     name: "AOT (${{ matrix.name }})"
-    needs: build-llvm
+    needs: [build-llvm, build-binaryen]
     runs-on: ${{ matrix.os }}
     env:
       ZERO_AR_DATE: 1
@@ -84,12 +90,20 @@ jobs:
           key: llvm-${{ matrix.name }}-${{ needs.build-llvm.outputs.llvm_branch }}
           fail-on-cache-miss: true
 
+      - name: Restore binaryen cache
+        uses: actions/cache/restore@v5
+        with:
+          path: binaryen-install
+          key: binaryen-${{ matrix.name }}-${{ needs.build-binaryen.outputs.binaryen_version }}
+          fail-on-cache-miss: true
+
       - name: Configure CMake
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/dist
           -DWAMR_BUILD_AOT_COMPILER=ON
+          -DBINARYEN_ROOT=${{ github.workspace }}/binaryen-install
           ${{ matrix.flags }}
 
       - name: Build
@@ -100,23 +114,8 @@ jobs:
         working-directory: build
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
 
-      - name: Build binaryen
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target binaryen
-
       - name: Install
         run: cmake --install build --config ${{ env.BUILD_TYPE }} --prefix dist
-
-      - name: Install binaryen
-        shell: bash
-        run: |
-          mkdir -p dist/lib dist/bin
-          if [ -f build/binaryen/lib/libbinaryen.so ]; then
-            cp build/binaryen/lib/libbinaryen.so dist/lib/
-          elif [ -f build/binaryen/lib/libbinaryen.dylib ]; then
-            cp build/binaryen/lib/libbinaryen.dylib dist/lib/
-          elif [ -f build/binaryen/bin/binaryen.dll ]; then
-            cp build/binaryen/bin/binaryen.dll dist/bin/
-          fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v6

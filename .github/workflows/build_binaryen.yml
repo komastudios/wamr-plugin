@@ -1,0 +1,72 @@
+name: Reusable workflow — build binaryen
+
+on:
+  workflow_call:
+    outputs:
+      binaryen_version:
+        description: "The binaryen submodule commit SHA (for cache key reconstruction)"
+        value: ${{ jobs.build.outputs.binaryen_version }}
+
+jobs:
+  build:
+    name: "Binaryen (${{ matrix.name }})"
+    runs-on: ${{ matrix.os }}
+    outputs:
+      binaryen_version: ${{ steps.version.outputs.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-22.04
+            flags: "-GNinja"
+          - name: macos-arm64
+            os: macos-15
+            flags: "-GNinja"
+          - name: windows-x64
+            os: windows-2022
+            flags: "-A x64"
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Get binaryen version
+        id: version
+        shell: bash
+        run: echo "sha=$(git -C binaryen rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Cache binaryen
+        id: cache-binaryen
+        uses: actions/cache@v5
+        with:
+          path: binaryen-install
+          key: binaryen-${{ matrix.name }}-${{ steps.version.outputs.sha }}
+
+      - name: Install Ninja (Linux)
+        if: steps.cache-binaryen.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: sudo apt install -y ninja-build
+
+      - name: Install Ninja (macOS)
+        if: steps.cache-binaryen.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Configure binaryen
+        if: steps.cache-binaryen.outputs.cache-hit != 'true'
+        shell: bash
+        run: >-
+          cmake -S binaryen -B binaryen-build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/binaryen-install
+          -DBUILD_TESTS=OFF
+          -DBUILD_STATIC_LIB=OFF
+          -DBUILD_LLVM_DWARF=ON
+          -DBYN_ENABLE_LTO=OFF
+          -DENABLE_WERROR=OFF
+          ${{ matrix.flags }}
+
+      - name: Build and install binaryen
+        if: steps.cache-binaryen.outputs.cache-hit != 'true'
+        run: cmake --build binaryen-build --config Release --target install --parallel
