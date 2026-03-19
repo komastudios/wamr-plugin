@@ -229,10 +229,6 @@ jobs:
         if: "!matrix.universal"
         run: cmake --build build --config Release --parallel
 
-      - name: Build binaryen (desktop)
-        if: "matrix.desktop && !matrix.universal"
-        run: cmake --build build --config Release --parallel --target binaryen
-
       - name: Test
         if: matrix.test
         working-directory: build

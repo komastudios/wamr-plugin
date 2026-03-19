@@ -95,9 +95,6 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
 
-      - name: Build binaryen
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target binaryen
-
       - name: Test
         if: matrix.test
         working-directory: build
