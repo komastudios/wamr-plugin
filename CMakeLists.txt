@@ -251,13 +251,15 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
         RUNTIME DESTINATION bin)
 endfunction()
 
-add_wamr_library(wamr-static STATIC)
+if(BUILD_SHARED)
+    add_wamr_library(wamr SHARED)
+else()
+    add_wamr_library(wamr-static STATIC)
+endif()
 
 install(FILES src/wamr_unity_api.h DESTINATION include)
 
-if(BUILD_SHARED)
-    add_wamr_library(wamr SHARED)
-endif()
+
 
 # ---------- AOT compiler shared library (desktop only, requires LLVM) ----------
 
@@ -287,6 +289,8 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         WASM_ENABLE_MEMORY64=1
         WASM_ENABLE_EXTENDED_CONST_EXPR=1
         WASM_ENABLE_GC=1
+        ZYDIS_STATIC_BUILD=1
+        ZYCORE_STATIC_BUILD=1
         ${LLVM_DEFINITIONS}
     )
 
