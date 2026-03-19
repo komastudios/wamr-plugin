@@ -105,6 +105,15 @@ WAMR_API bool wamr_validate_memory(wamr_instance_t instance,
                                    uint32_t        wasm_ptr,
                                    uint32_t        size);
 
+/* --- Running mode control ---
+ * Modes: 1 = Interp, 2 = Fast JIT, 3 = LLVM JIT, 4 = Multi-Tier JIT.
+ * Query support before setting. Per-instance functions need the wrapper
+ * handle (not a raw wasm_module_inst_t). */
+WAMR_API bool     wamr_is_running_mode_supported(int32_t mode);
+WAMR_API bool     wamr_set_default_running_mode(int32_t mode);
+WAMR_API bool     wamr_set_running_mode(wamr_instance_t instance, int32_t mode);
+WAMR_API int32_t  wamr_get_running_mode(wamr_instance_t instance);
+
 #ifdef __cplusplus
 }
 #endif

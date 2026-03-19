@@ -52,6 +52,12 @@ bool         wamr_read_memory(wamr_instance_t inst, uint32_t p,
     { (void)inst; (void)p; (void)d; (void)sz; return false; }
 bool         wamr_validate_memory(wamr_instance_t inst, uint32_t p, uint32_t sz)
     { (void)inst; (void)p; (void)sz; return false; }
+bool         wamr_is_running_mode_supported(int32_t mode) { (void)mode; return false; }
+bool         wamr_set_default_running_mode(int32_t mode) { (void)mode; return false; }
+bool         wamr_set_running_mode(wamr_instance_t inst, int32_t mode)
+    { (void)inst; (void)mode; return false; }
+int32_t      wamr_get_running_mode(wamr_instance_t inst)
+    { (void)inst; return 0; }
 
 #else /* !WAMR_STUB_ONLY — real implementation */
 
@@ -309,6 +315,32 @@ bool wamr_validate_memory(wamr_instance_t instance,
     instance_wrapper *w = (instance_wrapper *)instance;
     return wasm_runtime_validate_app_addr(w->module_inst,
                                           (uint64_t)wasm_ptr, (uint64_t)size);
+}
+
+/* --- Running mode control -------------------------------------------- */
+
+bool wamr_is_running_mode_supported(int32_t mode)
+{
+    return wasm_runtime_is_running_mode_supported((RunningMode)mode);
+}
+
+bool wamr_set_default_running_mode(int32_t mode)
+{
+    return wasm_runtime_set_default_running_mode((RunningMode)mode);
+}
+
+bool wamr_set_running_mode(wamr_instance_t instance, int32_t mode)
+{
+    if (!instance) return false;
+    instance_wrapper *w = (instance_wrapper *)instance;
+    return wasm_runtime_set_running_mode(w->module_inst, (RunningMode)mode);
+}
+
+int32_t wamr_get_running_mode(wamr_instance_t instance)
+{
+    if (!instance) return 0;
+    instance_wrapper *w = (instance_wrapper *)instance;
+    return (int32_t)wasm_runtime_get_running_mode(w->module_inst);
 }
 
 #endif /* WAMR_STUB_ONLY */
