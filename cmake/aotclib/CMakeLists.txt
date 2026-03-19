@@ -82,9 +82,9 @@ set_target_properties(aotclib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(aotclib PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(aotclib PRIVATE ${WAMRC_COMPILE_DEFS})
 
-# Disable RTTI for LLVM compatibility
+# Disable RTTI and exceptions to match LLVM's build settings
 if(MSVC)
-    target_compile_options(aotclib PRIVATE /GR-)
+    target_compile_options(aotclib PRIVATE /GR- /EHs-c-)
 else()
-    target_compile_options(aotclib PRIVATE -fno-rtti)
+    target_compile_options(aotclib PRIVATE -fno-rtti -fno-exceptions)
 endif()
