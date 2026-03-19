@@ -233,7 +233,7 @@ jobs:
       - name: Test
         if: matrix.test
         working-directory: build
-        run: ctest -C Release --output-on-failure
+        run: ctest -C Release -V
 
       - name: Install (Standard)
         if: "!matrix.ios"
