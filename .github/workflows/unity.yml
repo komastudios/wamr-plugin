@@ -20,12 +20,14 @@ jobs:
   # ---------------------------------------------------------------
   build-llvm:
     uses: ./.github/workflows/build_llvm_libraries.yml
+    secrets: inherit
 
   # ---------------------------------------------------------------
   # Build binaryen (cached, shared with unity_aot.yml)
   # ---------------------------------------------------------------
   build-binaryen:
     uses: ./.github/workflows/build_binaryen.yml
+    secrets: inherit
 
   # ---------------------------------------------------------------
   # Build WAMR runtime + binaryen for all platforms
