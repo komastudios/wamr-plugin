@@ -25,7 +25,10 @@ jobs:
             flags: "-GNinja"
           - name: macos-arm64
             os: macos-15
-            flags: "-GNinja"
+            flags: "-GNinja -DCMAKE_OSX_ARCHITECTURES=arm64"
+          - name: macos-x64
+            os: macos-15
+            flags: "-GNinja -DCMAKE_OSX_ARCHITECTURES=x86_64"
           - name: windows-x64
             os: windows-2022
             flags: "-A x64"

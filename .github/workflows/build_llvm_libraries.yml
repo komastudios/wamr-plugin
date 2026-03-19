@@ -29,6 +29,10 @@ jobs:
             os: ubuntu-22.04
           - name: macos-arm64
             os: macos-15
+            extra_cmake_flags: "-DCMAKE_OSX_ARCHITECTURES=arm64"
+          - name: macos-x64
+            os: macos-15
+            extra_cmake_flags: "-DCMAKE_OSX_ARCHITECTURES=x86_64"
           - name: windows-x64
             os: windows-2022
 
@@ -103,5 +107,5 @@ jobs:
       - name: Build LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         shell: bash
-        run: python3 ./wamr/build-scripts/build_llvm.py
+        run: python3 ./wamr/build-scripts/build_llvm.py ${{ matrix.extra_cmake_flags && format('--extra-cmake-flags "{0}"', matrix.extra_cmake_flags) || '' }}
         timeout-minutes: 120
