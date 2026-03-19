@@ -74,7 +74,7 @@ jobs:
             os: windows-2022
             desktop: true
             shell: pwsh
-            flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON"
+            flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON -DWAMR_ENABLE_AOT_MONOLITH=OFF"
             jit_flags: "-DBUILD_FAST_JIT=OFF -DBUILD_JIT=OFF -DBUILD_AOT=ON"
             test: true
           # --- Android ---
