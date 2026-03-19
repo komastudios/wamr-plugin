@@ -19,18 +19,8 @@ jobs:
   # ---------------------------------------------------------------
   # Build LLVM libraries (cached, shared with unity_aot.yml)
   # ---------------------------------------------------------------
-  build-llvm-linux:
+  build-llvm:
     uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: ubuntu-22.04
-  build-llvm-macos:
-    uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: macos-15
-  build-llvm-windows:
-    uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: windows-2022
 
   # ---------------------------------------------------------------
   # Build WAMR runtime + binaryen for all platforms

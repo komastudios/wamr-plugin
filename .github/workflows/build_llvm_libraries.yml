@@ -3,23 +3,31 @@ name: Reusable workflow — build LLVM libraries
 on:
   workflow_call:
     inputs:
-      os:
-        required: true
-        type: string
       llvm_branch:
         required: false
         type: string
         default: "llvmorg-18.1.8"
     outputs:
-      cache_key:
-        description: "Cache key for the LLVM libraries"
-        value: ${{ jobs.build_llvm_libraries.outputs.key }}
+      llvm_branch:
+        description: "The LLVM branch that was built (for cache key reconstruction)"
+        value: ${{ jobs.build.outputs.llvm_branch }}
 
 jobs:
-  build_llvm_libraries:
-    runs-on: ${{ inputs.os }}
+  build:
+    name: "LLVM (${{ matrix.name }})"
+    runs-on: ${{ matrix.os }}
     outputs:
-      key: ${{ steps.cache_key.outputs.key }}
+      llvm_branch: ${{ inputs.llvm_branch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-22.04
+          - name: macos-arm64
+            os: macos-15
+          - name: windows-x64
+            os: windows-2022
 
     steps:
       - uses: actions/checkout@v6
@@ -27,12 +35,9 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
-      - name: Form cache key
-        id: cache_key
-        shell: bash
-        run: |
-          echo "key=llvm-${{ runner.os }}-${{ runner.arch }}-${{ inputs.llvm_branch }}" >> $GITHUB_OUTPUT
-
+      # Cache key format: llvm-{name}-{branch}
+      # Callers that need to restore this cache can reconstruct the key
+      # from the same matrix name and branch.
       - name: Cache LLVM libraries
         id: cache-llvm
         uses: actions/cache@v5
@@ -43,31 +48,31 @@ jobs:
             wamr/core/deps/llvm/build/lib
             wamr/core/deps/llvm/build/libexec
             wamr/core/deps/llvm/build/share
-          key: ${{ steps.cache_key.outputs.key }}
+          key: llvm-${{ matrix.name }}-${{ inputs.llvm_branch }}
 
       - name: Cache ccache (Linux)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Linux'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
-          restore-keys: ccache-llvm-${{ runner.os }}-
+          key: ccache-llvm-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ matrix.name }}-
 
       - name: Cache ccache (macOS)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'macOS'
         uses: actions/cache@v5
         with:
           path: ~/Library/Caches/ccache
-          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
-          restore-keys: ccache-llvm-${{ runner.os }}-
+          key: ccache-llvm-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ matrix.name }}-
 
       - name: Cache ccache (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Windows'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
-          restore-keys: ccache-llvm-${{ runner.os }}-
+          key: ccache-llvm-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ matrix.name }}-
 
       - name: Install build tools (Linux)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Linux'

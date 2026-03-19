@@ -13,31 +13,20 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  LLVM_BRANCH: llvmorg-18.1.8
 
 jobs:
   # ---------------------------------------------------------------
   # Build LLVM libraries (cached, shared with unity.yml)
   # ---------------------------------------------------------------
-  build-llvm-linux:
+  build-llvm:
     uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: ubuntu-22.04
-  build-llvm-macos:
-    uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: macos-15
-  build-llvm-windows:
-    uses: ./.github/workflows/build_llvm_libraries.yml
-    with:
-      os: windows-2022
 
   # ---------------------------------------------------------------
   # Build AOT compiler + runtime
   # ---------------------------------------------------------------
   build-aot:
     name: "AOT (${{ matrix.name }})"
-    needs: [build-llvm-linux, build-llvm-macos, build-llvm-windows]
+    needs: build-llvm
     runs-on: ${{ matrix.os }}
     env:
       ZERO_AR_DATE: 1
@@ -92,7 +81,7 @@ jobs:
             wamr/core/deps/llvm/build/lib
             wamr/core/deps/llvm/build/libexec
             wamr/core/deps/llvm/build/share
-          key: llvm-${{ runner.os }}-${{ runner.arch }}-${{ env.LLVM_BRANCH }}
+          key: llvm-${{ matrix.name }}-${{ needs.build-llvm.outputs.llvm_branch }}
           fail-on-cache-miss: true
 
       - name: Configure CMake
