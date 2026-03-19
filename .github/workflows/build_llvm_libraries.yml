@@ -16,6 +16,9 @@ jobs:
   build:
     name: "LLVM (${{ matrix.name }})"
     runs-on: ${{ matrix.os }}
+    concurrency:
+      group: build-llvm-${{ matrix.name }}
+      cancel-in-progress: false
     outputs:
       llvm_branch: ${{ inputs.llvm_branch }}
     strategy:

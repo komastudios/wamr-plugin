@@ -11,6 +11,9 @@ jobs:
   build:
     name: "Binaryen (${{ matrix.name }})"
     runs-on: ${{ matrix.os }}
+    concurrency:
+      group: build-binaryen-${{ matrix.name }}
+      cancel-in-progress: false
     outputs:
       binaryen_version: ${{ steps.version.outputs.sha }}
     strategy:
