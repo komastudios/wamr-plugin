@@ -100,6 +100,9 @@ jobs:
         working-directory: build
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
 
+      - name: Build binaryen
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target binaryen
+
       - name: Install
         run: cmake --install build --config ${{ env.BUILD_TYPE }} --prefix dist
 
