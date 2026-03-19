@@ -289,6 +289,19 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         ${LLVM_DEFINITIONS}
     )
 
+    # Add BUILD_TARGET_* define for aotclib (its CMakeLists.txt clears
+    # directory-level definitions, and MSVC lacks the predefined macros
+    # that config.h uses for auto-detection).
+    if(WAMR_BUILD_TARGET STREQUAL "X86_64")
+        list(APPEND WAMRC_COMPILE_DEFS BUILD_TARGET_X86_64)
+    elseif(WAMR_BUILD_TARGET STREQUAL "AMD_64")
+        list(APPEND WAMRC_COMPILE_DEFS BUILD_TARGET_AMD_64)
+    elseif(WAMR_BUILD_TARGET STREQUAL "X86_32")
+        list(APPEND WAMRC_COMPILE_DEFS BUILD_TARGET_X86_32)
+    elseif(WAMR_BUILD_TARGET MATCHES "AARCH64")
+        list(APPEND WAMRC_COMPILE_DEFS BUILD_TARGET_AARCH64)
+    endif()
+
     if(WAMR_BUILD_PLATFORM STREQUAL "windows")
         list(APPEND WAMRC_COMPILE_DEFS COMPILING_WASM_RUNTIME_API=1)
     endif()
