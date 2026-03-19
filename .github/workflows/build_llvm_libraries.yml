@@ -51,7 +51,7 @@ jobs:
         with:
           endpoint: ${{ vars.CACHE_ENDPOINT }}
           accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
-          secretKey: ${{ secrets.CACHE_SECRET_KEY }}
+          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
           bucket: ${{ secrets.CACHE_BUCKET }}
           path: |
             wamr/core/deps/llvm/build/bin
