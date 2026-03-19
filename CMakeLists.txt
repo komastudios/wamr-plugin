@@ -375,13 +375,16 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_BINARY_DIR})
 
-    target_link_libraries(test_wamr PRIVATE wamr-static)
-
-    if(TARGET Threads::Threads)
-        target_link_libraries(test_wamr PRIVATE Threads::Threads)
-    endif()
-    if(UNIX)
-        target_link_libraries(test_wamr PRIVATE m)
+    if(BUILD_SHARED)
+        target_link_libraries(test_wamr PRIVATE wamr)
+    else()
+        target_link_libraries(test_wamr PRIVATE wamr-static)
+        if(TARGET Threads::Threads)
+            target_link_libraries(test_wamr PRIVATE Threads::Threads)
+        endif()
+        if(UNIX)
+            target_link_libraries(test_wamr PRIVATE m)
+        endif()
     endif()
 
     add_test(NAME test_wamr COMMAND test_wamr)
