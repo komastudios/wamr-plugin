@@ -75,7 +75,7 @@ jobs:
             desktop: true
             shell: pwsh
             flags: "-A x64 -DUSE_MSVC_STATIC_RUNTIME=ON"
-            jit_flags: "-DBUILD_FAST_JIT=ON -DBUILD_JIT=ON -DBUILD_AOT=ON"
+            jit_flags: "-DBUILD_FAST_JIT=OFF -DBUILD_JIT=OFF -DBUILD_AOT=ON"
             test: true
           # --- Android ---
           - name: Android (arm64-v8a)
