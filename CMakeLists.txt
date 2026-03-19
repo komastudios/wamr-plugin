@@ -217,6 +217,7 @@ endif()
 
 if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     enable_language(CXX)
+    set(CMAKE_CXX_STANDARD 17)
 
     # Find LLVM from pre-built location
     set(LLVM_SRC_ROOT "${WAMR_ROOT_DIR}/core/deps/llvm")
@@ -230,9 +231,13 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
     # Compiler defines matching wamr-compiler/CMakeLists.txt.
-    # Scoped to aotclib/wamrc only (NOT global, to avoid leaking into the runtime).
+    # Scoped to aotclib/wamr_compiler only (NOT global, to avoid leaking into the runtime).
+    # WASM_ENABLE_INTERP=1 + WASM_ENABLE_FAST_INTERP=0 override the runtime's
+    # fast-interp setting — the AOT compiler needs the classic WASMInterpFrame (with sp).
     set(WAMRC_COMPILE_DEFS
         WASM_ENABLE_WAMR_COMPILER=1
+        WASM_ENABLE_INTERP=1
+        WASM_ENABLE_FAST_INTERP=0
         WASM_ENABLE_BULK_MEMORY=1
         WASM_ENABLE_BULK_MEMORY_OPT=1
         WASM_DISABLE_HW_BOUND_CHECK=1
