@@ -130,6 +130,27 @@ set(WAMR_BUILD_REF_TYPES 0)
 set(WAMR_BUILD_SIMD 0)
 set(WAMR_BUILD_TAIL_CALL 0)
 
+# ---------- LLVM (required for AOT compiler and LLVM JIT) ----------
+
+if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
+    set(CMAKE_CXX_STANDARD 17)
+
+    set(LLVM_SRC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/wamr/core/deps/llvm")
+    if(NOT EXISTS "${LLVM_SRC_ROOT}/build")
+        message(FATAL_ERROR "Cannot find LLVM dir: ${LLVM_SRC_ROOT}/build")
+    endif()
+    set(CMAKE_PREFIX_PATH "${LLVM_SRC_ROOT}/build;${CMAKE_PREFIX_PATH}")
+
+    find_package(LLVM REQUIRED CONFIG)
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+
+    if(LLVM_LINK_LLVM_DYLIB)
+        set(WAMR_LLVM_LIBS LLVM)
+    else()
+        set(WAMR_LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+    endif()
+endif()
+
 # ---------- Build WAMR library targets ----------
 
 # Emscripten: WAMR cannot run inside WASM — build stubs only.
@@ -192,6 +213,12 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
             ${WAMR_ROOT_DIR}/core/iwasm/include)
     endif()
 
+    # LLVM JIT: add LLVM include dirs and link libs
+    if(WAMR_BUILD_JIT)
+        target_include_directories(${TARGET_NAME} PRIVATE ${LLVM_INCLUDE_DIRS})
+        target_compile_definitions(${TARGET_NAME} PRIVATE ${LLVM_DEFINITIONS})
+    endif()
+
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
 
     if(LIB_TYPE STREQUAL "STATIC")
@@ -212,6 +239,9 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
         if(WIN32)
             target_link_libraries(${TARGET_NAME} PRIVATE ntdll)
         endif()
+        if(WAMR_BUILD_JIT)
+            target_link_libraries(${TARGET_NAME} PRIVATE ${WAMR_LLVM_LIBS})
+        endif()
     endif()
 
     install(TARGETS ${TARGET_NAME}
@@ -231,20 +261,6 @@ endif()
 # ---------- AOT compiler shared library (desktop only, requires LLVM) ----------
 
 if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
-    enable_language(CXX)
-    set(CMAKE_CXX_STANDARD 17)
-
-    # Find LLVM from pre-built location
-    set(LLVM_SRC_ROOT "${WAMR_ROOT_DIR}/core/deps/llvm")
-    if(NOT EXISTS "${LLVM_SRC_ROOT}/build")
-        message(FATAL_ERROR "Cannot find LLVM dir: ${LLVM_SRC_ROOT}/build")
-    endif()
-    set(CMAKE_PREFIX_PATH "${LLVM_SRC_ROOT}/build;${CMAKE_PREFIX_PATH}")
-
-    find_package(LLVM REQUIRED CONFIG)
-
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-
     # Compiler defines matching wamr-compiler/CMakeLists.txt.
     # Scoped to aotclib/wamr_compiler only (NOT global, to avoid leaking into the runtime).
     # WASM_ENABLE_INTERP=1 + WASM_ENABLE_FAST_INTERP=0 override the runtime's
@@ -283,13 +299,6 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     include(${WAMR_ROOT_DIR}/core/iwasm/compilation/iwasm_compl.cmake)
     add_subdirectory(cmake/aotclib)
 
-    # LLVM link libraries
-    if(LLVM_LINK_LLVM_DYLIB)
-        set(WAMRC_LINK_LLVM_LIBS LLVM)
-    else()
-        set(WAMRC_LINK_LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
-    endif()
-
     # wamr_compiler shared library
     add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
     target_include_directories(wamr_compiler PRIVATE
@@ -304,7 +313,7 @@ if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
     endif()
 
-    target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMRC_LINK_LLVM_LIBS})
+    target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
 
     if(NOT MSVC)
         target_link_libraries(wamr_compiler PRIVATE -lm -lpthread -ldl)
@@ -389,7 +398,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
             ${LLVM_INCLUDE_DIRS})
 
         target_link_libraries(test_wamr_compiler PRIVATE
-            aotclib vmlib-compiler ${WAMRC_LINK_LLVM_LIBS})
+            aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
 
         if(TARGET Threads::Threads)
             target_link_libraries(test_wamr_compiler PRIVATE Threads::Threads)
