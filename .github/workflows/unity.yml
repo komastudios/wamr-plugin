@@ -13,7 +13,6 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  WAMR_FAST_JIT: ON
 
 jobs:
   # ---------------------------------------------------------------
@@ -177,7 +176,9 @@ jobs:
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
-          ${{ matrix.desktop && format('-DWAMR_BUILD_FAST_JIT={0}', env.WAMR_FAST_JIT) || '' }}
+          ${{ matrix.desktop && '-DWAMR_BUILD_FAST_JIT=ON' || '' }}
+          ${{ matrix.desktop && '-DWAMR_BUILD_JIT=ON' || '' }}
+          ${{ matrix.desktop && '-DWAMR_BUILD_AOT=ON' || '' }}
           ${{ matrix.desktop && '-DWAMR_BUILD_AOT_COMPILER=ON' || '' }}
           ${{ matrix.desktop && format('-DBINARYEN_ROOT={0}/binaryen-install', github.workspace) || '' }}
           ${{ matrix.flags }}

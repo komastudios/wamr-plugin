@@ -10,6 +10,13 @@ option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
 option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
 option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
 
+# Execution mode options (see https://bytecodealliance.github.io/wamr.dev/blog/introduction-to-wamr-running-modes/)
+option(WAMR_BUILD_INTERP     "Enable interpreter"                     ON)
+option(WAMR_BUILD_FAST_INTERP "Use fast interpreter (incompatible with fast JIT)" ON)
+option(WAMR_BUILD_FAST_JIT   "Enable fast JIT"                        OFF)
+option(WAMR_BUILD_JIT         "Enable LLVM JIT (requires LLVM)"       OFF)
+option(WAMR_BUILD_AOT         "Enable AOT execution"                  OFF)
+
 # ---------- Deterministic build flags (matches lz4/xxHash/BLAKE3 pattern) ----------
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
@@ -114,27 +121,26 @@ endif()
 set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/wamr)
 
 # ---------- WAMR build configuration ----------
-# Fast interpreter, builtin libc, no filesystem, no threading.
-# Fast JIT can be enabled via -DWAMR_BUILD_FAST_JIT=1 (desktop only).
-# When AOT compiler is enabled (LLVM available), LLVM JIT is also enabled.
+# Resolve running mode compatibility constraints:
+#   - Fast JIT requires classic interpreter (not fast-interp)
+#   - LLVM JIT requires AOT support
+#   - Multi-tier JIT (both JITs) requires both fast JIT + LLVM JIT
 
-option(WAMR_BUILD_FAST_JIT "Enable WAMR fast JIT" OFF)
-
-set(WAMR_BUILD_INTERP 1)
-if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
-    set(WAMR_BUILD_AOT 1)
-    set(WAMR_BUILD_JIT 1)
-else()
-    set(WAMR_BUILD_AOT 0)
-    set(WAMR_BUILD_JIT 0)
+if(WAMR_BUILD_FAST_JIT AND WAMR_BUILD_FAST_INTERP)
+    message(STATUS "Fast JIT enabled — disabling fast-interp (incompatible)")
+    set(WAMR_BUILD_FAST_INTERP OFF)
 endif()
 
-if(WAMR_BUILD_FAST_JIT)
-    # Fast JIT implies classic interpreter (fast-interp is incompatible)
-    set(WAMR_BUILD_FAST_INTERP 0)
-else()
-    set(WAMR_BUILD_FAST_INTERP 1)
+if(WAMR_BUILD_JIT AND NOT WAMR_BUILD_AOT)
+    message(STATUS "LLVM JIT enabled — enabling AOT (required)")
+    set(WAMR_BUILD_AOT ON)
 endif()
+
+if(WAMR_BUILD_FAST_JIT AND NOT WAMR_BUILD_INTERP)
+    message(STATUS "Fast JIT enabled — enabling interpreter (required)")
+    set(WAMR_BUILD_INTERP ON)
+endif()
+
 set(WAMR_BUILD_LIBC_BUILTIN 1)
 set(WAMR_BUILD_LIBC_WASI 0)
 set(WAMR_BUILD_MULTI_MODULE 0)
