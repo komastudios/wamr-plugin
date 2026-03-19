@@ -25,6 +25,20 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
     add_compile_options("/Brepro")
     add_link_options("/Brepro")
     add_compile_options("/pathmap:${CMAKE_CURRENT_SOURCE_DIR}=.")
+    # Suppress noisy warnings from third-party code (WAMR, LLVM, Zydis)
+    add_compile_options(
+        /wd4100  # unreferenced formal parameter
+        /wd4127  # conditional expression is constant
+        /wd4146  # unary minus applied to unsigned type
+        /wd4152  # nonstandard extension, function/data pointer conversion
+        /wd4244  # conversion, possible loss of data
+        /wd4245  # signed/unsigned mismatch in conversion
+        /wd4267  # conversion from 'size_t', possible loss of data
+        /wd4273  # inconsistent dll linkage
+        /wd4324  # structure was padded due to alignment specifier
+        /wd4458  # declaration hides class member
+        /wd4624  # destructor was implicitly defined as deleted
+    )
 endif()
 
 # ---------- Platform-specific settings ----------
