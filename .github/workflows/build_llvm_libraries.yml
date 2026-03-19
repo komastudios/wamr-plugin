@@ -1,0 +1,99 @@
+name: Reusable workflow — build LLVM libraries
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      llvm_branch:
+        required: false
+        type: string
+        default: "llvmorg-18.1.8"
+    outputs:
+      cache_key:
+        description: "Cache key for the LLVM libraries"
+        value: ${{ jobs.build_llvm_libraries.outputs.key }}
+
+jobs:
+  build_llvm_libraries:
+    runs-on: ${{ inputs.os }}
+    outputs:
+      key: ${{ steps.cache_key.outputs.key }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Form cache key
+        id: cache_key
+        shell: bash
+        run: |
+          echo "key=llvm-${{ runner.os }}-${{ runner.arch }}-${{ inputs.llvm_branch }}" >> $GITHUB_OUTPUT
+
+      - name: Cache LLVM libraries
+        id: cache-llvm
+        uses: actions/cache@v5
+        with:
+          path: |
+            wamr/core/deps/llvm/build/bin
+            wamr/core/deps/llvm/build/include
+            wamr/core/deps/llvm/build/lib
+            wamr/core/deps/llvm/build/libexec
+            wamr/core/deps/llvm/build/share
+          key: ${{ steps.cache_key.outputs.key }}
+
+      - name: Cache ccache (Linux)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ runner.os }}-
+
+      - name: Cache ccache (macOS)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/ccache
+          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ runner.os }}-
+
+      - name: Cache ccache (Windows)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-llvm-${{ runner.os }}-${{ github.sha }}
+          restore-keys: ccache-llvm-${{ runner.os }}-
+
+      - name: Install build tools (Linux)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: sudo apt install -y ccache ninja-build
+
+      - name: Install build tools (macOS)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: brew install ccache ninja
+
+      - name: Install build tools (Windows)
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Windows'
+        shell: bash
+        run: choco install -y ccache ninja
+
+      - name: Install Python deps
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            python3 -m pip install -r wamr/build-scripts/requirements.txt --break-system-packages
+          else
+            python3 -m pip install -r wamr/build-scripts/requirements.txt
+          fi
+
+      - name: Build LLVM
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        shell: bash
+        run: python3 ./wamr/build-scripts/build_llvm.py
+        timeout-minutes: 120

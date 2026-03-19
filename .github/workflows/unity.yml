@@ -14,88 +14,23 @@ concurrency:
 env:
   BUILD_TYPE: Release
   WAMR_FAST_JIT: ON
-  LLVM_BRANCH: llvmorg-18.1.8
 
 jobs:
   # ---------------------------------------------------------------
   # Build LLVM libraries (cached, shared with unity_aot.yml)
   # ---------------------------------------------------------------
-  build-llvm:
-    name: "LLVM (${{ matrix.name }})"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: ${{ matrix.shell || 'bash' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux-x64
-            os: ubuntu-22.04
-            cache_path_ccache: ~/.cache/ccache
-          - name: macos-arm64
-            os: macos-15
-            cache_path_ccache: ~/Library/Caches/ccache
-          - name: windows-x64
-            os: windows-2022
-            shell: bash
-            cache_path_ccache: ~/.cache/ccache
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          submodules: recursive
-
-      - name: Cache LLVM libraries
-        id: cache-llvm
-        uses: actions/cache@v5
-        with:
-          path: |
-            wamr/core/deps/llvm/build/bin
-            wamr/core/deps/llvm/build/include
-            wamr/core/deps/llvm/build/lib
-            wamr/core/deps/llvm/build/libexec
-            wamr/core/deps/llvm/build/share
-          key: llvm-${{ matrix.name }}-${{ env.LLVM_BRANCH }}
-
-      - name: Cache ccache
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
-        uses: actions/cache@v5
-        with:
-          path: ${{ matrix.cache_path_ccache }}
-          key: ccache-llvm-${{ matrix.name }}-${{ github.sha }}
-          restore-keys: |
-            ccache-llvm-${{ matrix.name }}-
-
-      - name: Install build tools (Linux)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Linux'
-        run: sudo apt install -y ccache ninja-build
-
-      - name: Install build tools (macOS)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'macOS'
-        run: brew install ccache ninja
-
-      - name: Install build tools (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && runner.os == 'Windows'
-        run: choco install -y ccache ninja
-
-      - name: Install Python deps
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            python3 -m pip install -r wamr/build-scripts/requirements.txt --break-system-packages
-          else
-            python3 -m pip install -r wamr/build-scripts/requirements.txt
-          fi
-
-      - name: Build LLVM
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
-        shell: bash
-        run: python3 ./wamr/build-scripts/build_llvm.py
-        timeout-minutes: 120
+  build-llvm-linux:
+    uses: ./.github/workflows/build_llvm_libraries.yml
+    with:
+      os: ubuntu-22.04
+  build-llvm-macos:
+    uses: ./.github/workflows/build_llvm_libraries.yml
+    with:
+      os: macos-15
+  build-llvm-windows:
+    uses: ./.github/workflows/build_llvm_libraries.yml
+    with:
+      os: windows-2022
 
   # ---------------------------------------------------------------
   # Build WAMR runtime + binaryen for all platforms
