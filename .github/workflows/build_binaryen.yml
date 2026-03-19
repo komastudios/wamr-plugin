@@ -55,7 +55,6 @@ jobs:
 
       - name: Configure binaryen
         if: steps.cache-binaryen.outputs.cache-hit != 'true'
-        shell: bash
         run: >-
           cmake -S binaryen -B binaryen-build
           -DCMAKE_BUILD_TYPE=Release
