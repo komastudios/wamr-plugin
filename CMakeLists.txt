@@ -359,11 +359,7 @@ if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         endif()
         target_sources(wamr PRIVATE src/wamrc_unity_api.c)
         target_include_directories(wamr PRIVATE ${LLVM_INCLUDE_DIRS})
-        # Note: vmlib-compiler is intentionally NOT linked here — the wamr target
-        # already contains the runtime sources.  Linking vmlib-compiler would
-        # duplicate symbols (fatal on MSVC when compiled with different flags,
-        # e.g. fast-interp ON in runtime vs OFF in vmlib-compiler).
-        target_link_libraries(wamr PRIVATE aotclib ${WAMR_LLVM_LIBS})
+        target_link_libraries(wamr PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
     else()
         # Separate wamr_compiler shared library
         add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
