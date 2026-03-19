@@ -72,6 +72,7 @@ add_library(vmlib-compiler STATIC
     ${IWASM_GC_SOURCE})
 
 set_target_properties(vmlib-compiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(vmlib-compiler PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(vmlib-compiler PRIVATE ${WAMRC_COMPILE_DEFS})
 
 # ---------- aotclib: AOT compilation sources (LLVM codegen) ----------
