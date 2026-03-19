@@ -154,9 +154,15 @@ jobs:
       # --- Restore pre-built dependencies (desktop only) ---
 
       - name: Restore LLVM cache
+        id: restore-llvm
         if: matrix.desktop
-        uses: actions/cache/restore@v5
+        uses: tespkg/actions-cache/restore@v1.10.0
         with:
+          endpoint: ${{ vars.CACHE_ENDPOINT }}
+          accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
+          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
+          bucket: ${{ secrets.CACHE_BUCKET }}
+          use-fallback: false
           path: |
             wamr/core/deps/llvm/build/bin
             wamr/core/deps/llvm/build/include
@@ -164,15 +170,27 @@ jobs:
             wamr/core/deps/llvm/build/libexec
             wamr/core/deps/llvm/build/share
           key: llvm-${{ matrix.artifact }}-${{ needs.build-llvm.outputs.llvm_branch }}
-          fail-on-cache-miss: true
+
+      - name: Verify LLVM cache hit
+        if: matrix.desktop && steps.restore-llvm.outputs.cache-hit != 'true'
+        run: exit 1
 
       - name: Restore binaryen cache
+        id: restore-binaryen
         if: matrix.desktop
-        uses: actions/cache/restore@v5
+        uses: tespkg/actions-cache/restore@v1.10.0
         with:
+          endpoint: ${{ vars.CACHE_ENDPOINT }}
+          accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
+          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
+          bucket: ${{ secrets.CACHE_BUCKET }}
+          use-fallback: false
           path: binaryen-install
           key: binaryen-${{ matrix.artifact }}-${{ needs.build-binaryen.outputs.binaryen_version }}
-          fail-on-cache-miss: true
+
+      - name: Verify binaryen cache hit
+        if: matrix.desktop && steps.restore-binaryen.outputs.cache-hit != 'true'
+        run: exit 1
 
       # --- Standard (Linux, Windows, macOS) ---
 
