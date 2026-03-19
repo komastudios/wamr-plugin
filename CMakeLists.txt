@@ -7,6 +7,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(BUILD_SHARED "Build shared library" ON)
 option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
+option(WAMR_BUILD_AOT_COMPILER "Build AOT compiler shared library (requires LLVM)" OFF)
 
 # ---------- Deterministic build flags (matches lz4/xxHash/BLAKE3 pattern) ----------
 
@@ -91,7 +92,11 @@ set(WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/wamr)
 option(WAMR_BUILD_FAST_JIT "Enable WAMR fast JIT" OFF)
 
 set(WAMR_BUILD_INTERP 1)
-set(WAMR_BUILD_AOT 0)
+if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
+    set(WAMR_BUILD_AOT 1)
+else()
+    set(WAMR_BUILD_AOT 0)
+endif()
 set(WAMR_BUILD_JIT 0)
 
 if(WAMR_BUILD_FAST_JIT)
@@ -208,6 +213,103 @@ if(BUILD_SHARED)
     add_wamr_library(wamr SHARED)
 endif()
 
+# ---------- AOT compiler shared library (desktop only, requires LLVM) ----------
+
+if(WAMR_BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
+    enable_language(CXX)
+
+    # Find LLVM from pre-built location
+    set(LLVM_SRC_ROOT "${WAMR_ROOT_DIR}/core/deps/llvm")
+    if(NOT EXISTS "${LLVM_SRC_ROOT}/build")
+        message(FATAL_ERROR "Cannot find LLVM dir: ${LLVM_SRC_ROOT}/build")
+    endif()
+    set(CMAKE_PREFIX_PATH "${LLVM_SRC_ROOT}/build;${CMAKE_PREFIX_PATH}")
+
+    find_package(LLVM REQUIRED CONFIG)
+
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+
+    # Compiler defines matching wamr-compiler/CMakeLists.txt.
+    # Scoped to aotclib/wamrc only (NOT global, to avoid leaking into the runtime).
+    set(WAMRC_COMPILE_DEFS
+        WASM_ENABLE_WAMR_COMPILER=1
+        WASM_ENABLE_BULK_MEMORY=1
+        WASM_ENABLE_BULK_MEMORY_OPT=1
+        WASM_DISABLE_HW_BOUND_CHECK=1
+        WASM_ENABLE_SHARED_MEMORY=1
+        WASM_ENABLE_THREAD_MGR=1
+        WASM_ENABLE_TAIL_CALL=1
+        WASM_ENABLE_SIMD=1
+        WASM_ENABLE_REF_TYPES=1
+        WASM_ENABLE_CALL_INDIRECT_OVERLONG=1
+        WASM_ENABLE_CUSTOM_NAME_SECTION=1
+        WASM_ENABLE_AOT_STACK_FRAME=1
+        WASM_ENABLE_DUMP_CALL_STACK=1
+        WASM_ENABLE_LOAD_CUSTOM_SECTION=1
+        WASM_ENABLE_MODULE_INST_CONTEXT=1
+        WASM_ENABLE_MEMORY64=1
+        WASM_ENABLE_EXTENDED_CONST_EXPR=1
+        WASM_ENABLE_GC=1
+        ${LLVM_DEFINITIONS}
+    )
+
+    if(WAMR_BUILD_PLATFORM STREQUAL "windows")
+        list(APPEND WAMRC_COMPILE_DEFS COMPILING_WASM_RUNTIME_API=1)
+    endif()
+
+    # AOT compilation sources
+    set(WAMR_BUILD_WAMR_COMPILER 1)
+    include(${WAMR_ROOT_DIR}/core/iwasm/compilation/iwasm_compl.cmake)
+
+    add_library(aotclib STATIC ${IWASM_COMPL_SOURCE})
+    set_target_properties(aotclib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(aotclib PRIVATE ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(aotclib PRIVATE ${WAMRC_COMPILE_DEFS})
+
+    # Disable RTTI for LLVM compatibility
+    if(MSVC)
+        target_compile_options(aotclib PRIVATE /GR-)
+    else()
+        target_compile_options(aotclib PRIVATE -fno-rtti)
+    endif()
+
+    # LLVM link libraries
+    if(LLVM_LINK_LLVM_DYLIB)
+        set(WAMRC_LINK_LLVM_LIBS LLVM)
+    else()
+        set(WAMRC_LINK_LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+    endif()
+
+    # wamr_compiler shared library
+    add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
+    target_include_directories(wamr_compiler PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${WAMR_ROOT_DIR}/core/iwasm/include
+        ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(wamr_compiler PRIVATE WAMR_UNITY_EXPORT ${WAMRC_COMPILE_DEFS})
+    set_property(TARGET wamr_compiler PROPERTY C_VISIBILITY_PRESET hidden)
+    set_target_properties(wamr_compiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+    if(WIN32)
+        target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
+    endif()
+
+    target_link_libraries(wamr_compiler PRIVATE aotclib wamr-static ${WAMRC_LINK_LLVM_LIBS})
+
+    if(NOT MSVC)
+        target_link_libraries(wamr_compiler PRIVATE -lm -lpthread -ldl)
+    endif()
+    if(WIN32)
+        target_link_libraries(wamr_compiler PRIVATE ntdll)
+    endif()
+
+    install(TARGETS wamr_compiler
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)
+
+    install(FILES src/wamrc_unity_api.h DESTINATION include)
+endif()
+
 # ---------- Test WASM module assembly ----------
 # Use binaryen's wasm-as to compile tests/add.wat, then embed the resulting
 # binary as a C header via cmake/embed_file.cmake.
@@ -256,4 +358,28 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
     endif()
 
     add_test(NAME test_wamr COMMAND test_wamr)
+
+    if(WAMR_BUILD_AOT_COMPILER)
+        add_executable(test_wamr_compiler tests/test_wamr_compiler.c ${ADD_WASM_HDR})
+        target_include_directories(test_wamr_compiler PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_BINARY_DIR}
+            ${LLVM_INCLUDE_DIRS})
+        target_compile_definitions(test_wamr_compiler PRIVATE ${WAMRC_COMPILE_DEFS})
+
+        target_link_libraries(test_wamr_compiler PRIVATE
+            aotclib wamr-static ${WAMRC_LINK_LLVM_LIBS})
+
+        if(TARGET Threads::Threads)
+            target_link_libraries(test_wamr_compiler PRIVATE Threads::Threads)
+        endif()
+        if(NOT MSVC)
+            target_link_libraries(test_wamr_compiler PRIVATE -lm -lpthread -ldl)
+        endif()
+        if(WIN32)
+            target_link_libraries(test_wamr_compiler PRIVATE ntdll)
+        endif()
+
+        add_test(NAME test_wamr_compiler COMMAND test_wamr_compiler)
+    endif()
 endif()
