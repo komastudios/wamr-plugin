@@ -1,10 +1,6 @@
 name: unity-aot
 
 on:
-  push:
-    branches: [ "unity" ]
-  pull_request:
-    branches: [ "unity" ]
   workflow_dispatch:
 
 concurrency:
