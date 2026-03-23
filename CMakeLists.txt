@@ -85,6 +85,18 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android|iOS|Emscripten")
     set(WAMR_DESKTOP_BUILD TRUE)
 endif()
 
+# ---------- Third-party static libraries (LZ4, xxHash, BLAKE3) ----------
+# Built as static libs with hidden visibility, linked into the wamr shared lib.
+# add_subdirectory MUST happen BEFORE the WAMR include() below (same reason as binaryen).
+
+set(BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+    add_subdirectory(third_party/lz4 EXCLUDE_FROM_ALL)
+    add_subdirectory(third_party/xxhash EXCLUDE_FROM_ALL)
+endif()
+
 # ---------- Binaryen (desktop only) ----------
 # IMPORTANT: add_subdirectory MUST happen BEFORE the WAMR include() below,
 # because WAMR's runtime_lib.cmake calls include_directories() globally and
@@ -259,6 +271,14 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
 
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
 
+    # Link third-party static libraries (host natives for WASM modules).
+    # xxhash include dir must come BEFORE lz4's (lz4 bundles an older xxhash.h without XXH3).
+    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+        target_include_directories(${TARGET_NAME} BEFORE PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/xxhash)
+        target_link_libraries(${TARGET_NAME} PRIVATE lz4-static xxhash-static)
+    endif()
+
     if(LIB_TYPE STREQUAL "STATIC")
         set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
     else()
@@ -272,7 +292,7 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
             target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
         endif()
         if(UNIX)
-            target_link_libraries(${TARGET_NAME} PRIVATE m dl)
+            target_link_libraries(${TARGET_NAME} PRIVATE m)
         endif()
         if(WIN32)
             target_link_libraries(${TARGET_NAME} PRIVATE ntdll)
