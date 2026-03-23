@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  id-token: write
+
 env:
   BUILD_TYPE: Release
 
@@ -20,14 +24,12 @@ jobs:
   # ---------------------------------------------------------------
   build-llvm:
     uses: ./.github/workflows/build_llvm_libraries.yml
-    secrets: inherit
 
   # ---------------------------------------------------------------
   # Build binaryen (cached, shared with unity_aot.yml)
   # ---------------------------------------------------------------
   build-binaryen:
     uses: ./.github/workflows/build_binaryen.yml
-    secrets: inherit
 
   # ---------------------------------------------------------------
   # Build WAMR runtime + binaryen for all platforms
@@ -201,18 +203,22 @@ jobs:
         with:
           version: 3.1.8
 
-      # --- Restore pre-built dependencies (desktop only) ---
+      # --- Authenticate and restore pre-built dependencies (desktop only) ---
+
+      - name: Authenticate to Google Cloud
+        if: matrix.desktop
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Restore LLVM cache
-        id: restore-llvm
         if: matrix.llvm
-        uses: tespkg/actions-cache/restore@v1.10.0
+        uses: komastudios/actions-cache-gcs/restore@v1
         with:
-          endpoint: ${{ vars.CACHE_ENDPOINT }}
-          accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
-          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
-          bucket: ${{ secrets.CACHE_BUCKET }}
+          bucket: ${{ vars.CACHE_BUCKET }}
           use-fallback: false
+          fail-on-cache-miss: true
           path: |
             wamr/core/deps/llvm/build/bin
             wamr/core/deps/llvm/build/include
@@ -221,26 +227,15 @@ jobs:
             wamr/core/deps/llvm/build/share
           key: llvm-${{ matrix.platform }}-${{ needs.build-llvm.outputs.llvm_branch }}
 
-      - name: Verify LLVM cache hit
-        if: matrix.llvm && steps.restore-llvm.outputs.cache-hit != 'true'
-        run: exit 1
-
       - name: Restore binaryen cache
-        id: restore-binaryen
         if: matrix.desktop
-        uses: tespkg/actions-cache/restore@v1.10.0
+        uses: komastudios/actions-cache-gcs/restore@v1
         with:
-          endpoint: ${{ vars.CACHE_ENDPOINT }}
-          accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
-          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
-          bucket: ${{ secrets.CACHE_BUCKET }}
+          bucket: ${{ vars.CACHE_BUCKET }}
           use-fallback: false
+          fail-on-cache-miss: true
           path: binaryen-install
           key: binaryen-${{ matrix.platform }}-${{ needs.build-binaryen.outputs.binaryen_version }}
-
-      - name: Verify binaryen cache hit
-        if: matrix.desktop && steps.restore-binaryen.outputs.cache-hit != 'true'
-        run: exit 1
 
       # --- Standard (Linux, Windows, macOS) ---
 

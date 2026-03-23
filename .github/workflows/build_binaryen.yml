@@ -11,6 +11,9 @@ jobs:
   build:
     name: "Binaryen (${{ matrix.name }})"
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
     concurrency:
       group: build-binaryen-${{ matrix.name }}
       cancel-in-progress: false
@@ -44,14 +47,18 @@ jobs:
         shell: bash
         run: echo "sha=$(git -C binaryen rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
       - name: Cache binaryen
         id: cache-binaryen
-        uses: tespkg/actions-cache@v1.10.0
+        uses: komastudios/actions-cache-gcs@v1
         with:
-          endpoint: ${{ vars.CACHE_ENDPOINT }}
-          accessKey: ${{ secrets.CACHE_ACCESS_KEY }}
-          secretKey: ${{ secrets.CACHE_ACCESS_SECRET }}
-          bucket: ${{ secrets.CACHE_BUCKET }}
+          bucket: ${{ vars.CACHE_BUCKET }}
+          use-fallback: false
           path: binaryen-install
           key: binaryen-${{ matrix.name }}-${{ steps.version.outputs.sha }}
 
