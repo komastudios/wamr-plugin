@@ -43,6 +43,15 @@ typedef void *wamr_func_t;
 WAMR_API bool     wamr_init(void);
 WAMR_API void     wamr_destroy(void);
 
+/* --- Host-provided native library initialization ---
+ * Resolve and register native functions from external shared libraries.
+ * lib_path: full path to the library, or NULL for platform default name.
+ * Must be called after wamr_init() and before wamr_load_module().
+ * Returns 0 on success, non-zero on failure. */
+WAMR_API int      wamr_init_native_lz4(const char *lib_path);
+WAMR_API int      wamr_init_native_xxhash(const char *lib_path);
+WAMR_API int      wamr_init_native_blake3(const char *lib_path);
+
 /* --- Version info ---
  * Returns a string like "2.4.4 (interp, fast-jit)".
  * The pointer is valid for the lifetime of the process. */

@@ -12,6 +12,9 @@
 bool wamr_init(void) { return false; }
 void wamr_destroy(void) { }
 const char *wamr_get_version_string(void) { return "stub (WAMR not available)"; }
+int wamr_init_native_lz4(const char *p) { (void)p; return 0; }
+int wamr_init_native_xxhash(const char *p) { (void)p; return 0; }
+int wamr_init_native_blake3(const char *p) { (void)p; return 0; }
 
 wamr_module_t wamr_load_module(const uint8_t *wasm_bytes, uint32_t size,
                                char *error_buf, uint32_t error_buf_size)
@@ -68,6 +71,9 @@ bool         wamr_register_natives(const char *module_name, void *symbols, uint3
 /* ------------------------------------------------------------------ */
 #include "wasm_export.h"
 #include "host_natives/host_natives.h"
+#include "host_natives/host_native_lz4.h"
+#include "host_natives/host_native_xxhash.h"
+#include "host_natives/host_native_blake3.h"
 
 /* Internal wrapper: keeps the malloc'd WASM buffer alive alongside the module
  * (WAMR references the buffer for the lifetime of the loaded module). */
@@ -96,6 +102,21 @@ bool wamr_init(void)
 void wamr_destroy(void)
 {
     wasm_runtime_destroy();
+}
+
+int wamr_init_native_lz4(const char *lib_path)
+{
+    return host_native_lz4_init(lib_path);
+}
+
+int wamr_init_native_xxhash(const char *lib_path)
+{
+    return host_native_xxhash_init(lib_path);
+}
+
+int wamr_init_native_blake3(const char *lib_path)
+{
+    return host_native_blake3_init(lib_path);
 }
 
 /* --- Version info ---------------------------------------------------- */
