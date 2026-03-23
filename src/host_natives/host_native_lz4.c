@@ -5,7 +5,7 @@
 #include "host_native_lz4.h"
 
 #ifdef WAMR_STUB_ONLY
-bool host_native_lz4_init(const char *lib_path) { (void)lib_path; return true; }
+int host_native_lz4_init(const char *lib_path) { (void)lib_path; return 0; }
 #else
 
 #include "wasm_export.h"
@@ -98,17 +98,19 @@ static NativeSymbol s_lz4_symbols[] = {
     { "LZ4_compressBound",    (void *)native_LZ4_compressBound,    "(i)i",    NULL },
 };
 
-bool host_native_lz4_init(const char *lib_path)
+int host_native_lz4_init(const char *lib_path)
 {
+    int err = 0;
 #ifndef WAMR_HOST_NATIVES_STATIC
     if (!resolve(lib_path))
-        return false;
+        err = 1;
 #else
     (void)lib_path;
 #endif
-    return wasm_runtime_register_natives(
-        "env", s_lz4_symbols,
-        sizeof(s_lz4_symbols) / sizeof(NativeSymbol));
+    if (!wasm_runtime_register_natives("env", s_lz4_symbols,
+            sizeof(s_lz4_symbols) / sizeof(NativeSymbol)))
+        err = 1;
+    return err;
 }
 
 #endif /* WAMR_STUB_ONLY */
