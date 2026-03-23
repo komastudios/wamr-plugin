@@ -20,12 +20,15 @@ static inline void *hn_get_sym(void *lib, const char *name) { return dlsym(lib, 
 #ifdef _WIN32
 #define HN_LZ4_DEFAULT    "lz4.dll"
 #define HN_XXHASH_DEFAULT "xxhash.dll"
+#define HN_BLAKE3_DEFAULT "blake3.dll"
 #elif defined(__APPLE__)
 #define HN_LZ4_DEFAULT    "liblz4.dylib"
 #define HN_XXHASH_DEFAULT "libxxhash.dylib"
+#define HN_BLAKE3_DEFAULT "libblake3.dylib"
 #else
 #define HN_LZ4_DEFAULT    "liblz4.so"
 #define HN_XXHASH_DEFAULT "libxxhash.so"
+#define HN_BLAKE3_DEFAULT "libblake3.so"
 #endif
 
 #endif /* HOST_NATIVE_RESOLVE_H */
