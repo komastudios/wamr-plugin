@@ -21,19 +21,6 @@ bool wamr_host_natives_init(void) { return true; }
 #include <xxhash.h>
 
 /* ------------------------------------------------------------------ */
-/* Address conversion helpers                                         */
-/* ------------------------------------------------------------------ */
-
-#define get_module_inst(exec_env) \
-    wasm_runtime_get_module_inst(exec_env)
-
-#define validate_app_addr(offset, size) \
-    wasm_runtime_validate_app_addr(module_inst, (uint64)(offset), (uint64)(size))
-
-#define addr_app_to_native(offset) \
-    wasm_runtime_addr_app_to_native(module_inst, (uint64)(offset))
-
-/* ------------------------------------------------------------------ */
 /* WAMR native function implementations                               */
 /*                                                                    */
 /* Signatures use 'i' for all params (including pointers). Address    */
