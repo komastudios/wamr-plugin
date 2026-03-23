@@ -85,16 +85,19 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android|iOS|Emscripten")
     set(WAMR_DESKTOP_BUILD TRUE)
 endif()
 
-# ---------- Third-party static libraries (LZ4, xxHash, BLAKE3) ----------
+# ---------- Third-party static libraries (LZ4, xxHash) ----------
 # Built as static libs with hidden visibility, linked into the wamr shared lib.
 # add_subdirectory MUST happen BEFORE the WAMR include() below (same reason as binaryen).
 
-set(BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+function(add_third_party_library dir)
+    set(BUILD_SHARED OFF)
+    set(BUILD_TESTING OFF)
+    add_subdirectory(${dir} EXCLUDE_FROM_ALL)
+endfunction()
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    add_subdirectory(third_party/lz4 EXCLUDE_FROM_ALL)
-    add_subdirectory(third_party/xxhash EXCLUDE_FROM_ALL)
+    add_third_party_library(third_party/lz4)
+    add_third_party_library(third_party/xxhash)
 endif()
 
 # ---------- Binaryen (desktop only) ----------
