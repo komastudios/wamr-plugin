@@ -1,20 +1,28 @@
 # wamr-plugin
 
-Unity native plugin wrapping [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) (WebAssembly Micro Runtime) and [Binaryen](https://github.com/WebAssembly/binaryen) for cross-platform WASM execution and assembly.
+Native plugin wrapping [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) (WebAssembly Micro Runtime) and [Binaryen](https://github.com/WebAssembly/binaryen) for cross-platform WASM execution and assembly. Used by both Unity (C# P/Invoke) and the Python backend (ctypes).
 
 ## What this builds
 
-| Component | Desktop (Win/macOS/Linux) | Mobile (Android/iOS) | WebGL |
-|-----------|--------------------------|----------------------|-------|
-| **libwamr** (shared) | .dll / .dylib (universal) / .so | -- | -- |
-| **libwamr** (static) | .a | .a | .a (stub) |
-| **libbinaryen** (shared) | .dll / .dylib / .so | -- | -- |
+Desktop builds produce three variant-suffixed shared libraries:
 
-- **Desktop WAMR** is built with fast interpreter, Fast JIT, LLVM JIT, and AOT compiler enabled.
-- **Mobile/WebGL WAMR** is interpreter-only (no JIT — iOS forbids JIT, Android/WebGL don't need it).
-- **macOS** produces a universal binary (arm64 + x86_64) via `lipo`.
-- **Binaryen** is built on desktop only. Its `wasm-as` tool is used at build time to assemble `.wat` test modules, and the shared library is distributed for runtime use.
-- The **Emscripten/WebGL** build produces stub-only WAMR bindings (WAMR-in-WASM is not meaningful; browser-native WASM is used instead).
+| Variant | Platforms | Library name | Description |
+|---------|-----------|-------------|-------------|
+| **fast-interp** | All desktop | `libwamr-fast-interp.so/.dylib/.dll` | Fast interpreter, no JIT |
+| **llvm-jit** | All desktop | `libwamr-llvm-jit.so/.dylib/.dll` | LLVM JIT + AOT compiler |
+| **fast-jit** | Linux x86_64 | `libwamr-fast-jit.so` | WAMR lightweight JIT |
+
+Mobile and embedded builds produce a single static library (interpreter-only, no variant suffix):
+
+| Platform | Library |
+|----------|---------|
+| Android (arm64, armv7, x86, x86_64) | `libwamr-static.a` |
+| iOS (arm64) | `libwamr-static.a` |
+| Emscripten (wasm32) | `libwamr-static.a` (stub) |
+
+- **macOS** produces universal binaries (arm64 + x86_64) via `lipo` for each variant.
+- **Binaryen** is built on desktop only. Its `wasm-as` tool is used at build time to assemble `.wat` test modules.
+- The **Emscripten/WebGL** build produces stub-only bindings (WAMR-in-WASM is not meaningful; browser-native WASM is used instead).
 
 ## WAMR Runtime API (`wamr_plugin_api.h`)
 
@@ -104,4 +112,4 @@ ctest --test-dir build -C Release -V
 
 ## CI
 
-The GitHub Actions workflow (`.github/workflows/unity.yml`) builds for all 7 Unity target platforms and produces artifacts consumed by `download_plugins.ps1` in the main project. macOS arm64 and x86_64 are built separately and combined into a universal binary via `lipo`.
+The GitHub Actions workflow (`.github/workflows/unity.yml`) builds variant-suffixed libraries for all desktop platforms (fast-interp, llvm-jit, fast-jit) plus interpreter-only static libraries for mobile/embedded targets. Artifacts are consumed by `download_plugins.ps1` in the main project. macOS arm64 and x86_64 are built separately and combined into universal binaries via `lipo` for each variant.
