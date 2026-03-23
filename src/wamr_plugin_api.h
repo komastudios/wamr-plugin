@@ -105,6 +105,16 @@ WAMR_API bool wamr_validate_memory(wamr_instance_t instance,
                                    uint32_t        wasm_ptr,
                                    uint32_t        size);
 
+/* --- Native function registration ---
+ * Register host-provided native functions that WASM modules can import.
+ * Must be called after wamr_init() and before wamr_load_module().
+ * native_symbols is an array of {symbol, func_ptr, signature, attachment}
+ * structs (WAMR NativeSymbol layout, 4 pointers each).
+ * WAMR does NOT copy the array — caller must keep it alive. */
+WAMR_API bool wamr_register_natives(const char *module_name,
+                                     void       *native_symbols,
+                                     uint32_t    n_native_symbols);
+
 /* --- Running mode control ---
  * Modes: 1 = Interp, 2 = Fast JIT, 3 = LLVM JIT, 4 = Multi-Tier JIT.
  * Query support before setting. Per-instance functions need the wrapper

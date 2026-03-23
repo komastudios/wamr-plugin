@@ -58,6 +58,8 @@ bool         wamr_set_running_mode(wamr_instance_t inst, int32_t mode)
     { (void)inst; (void)mode; return false; }
 int32_t      wamr_get_running_mode(wamr_instance_t inst)
     { (void)inst; return 0; }
+bool         wamr_register_natives(const char *module_name, void *symbols, uint32_t count)
+    { (void)module_name; (void)symbols; (void)count; return false; }
 
 #else /* !WAMR_STUB_ONLY — real implementation */
 
@@ -341,6 +343,19 @@ int32_t wamr_get_running_mode(wamr_instance_t instance)
     if (!instance) return 0;
     instance_wrapper *w = (instance_wrapper *)instance;
     return (int32_t)wasm_runtime_get_running_mode(w->module_inst);
+}
+
+/* --- Native function registration --------------------------------------- */
+
+bool wamr_register_natives(const char *module_name,
+                           void *native_symbols,
+                           uint32_t n_native_symbols)
+{
+    if (!module_name || !native_symbols || n_native_symbols == 0)
+        return false;
+    return wasm_runtime_register_natives(module_name,
+                                         (NativeSymbol *)native_symbols,
+                                         n_native_symbols);
 }
 
 #endif /* WAMR_STUB_ONLY */
