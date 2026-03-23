@@ -59,6 +59,7 @@ jobs:
         uses: komastudios/actions-cache-gcs@v1
         with:
           bucket: ${{ vars.CACHE_BUCKET }}
+          prefix: wamr-plugin
           use-fallback: false
           path: |
             wamr/core/deps/llvm/build/bin

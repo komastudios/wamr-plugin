@@ -217,6 +217,7 @@ jobs:
         uses: komastudios/actions-cache-gcs/restore@v1
         with:
           bucket: ${{ vars.CACHE_BUCKET }}
+          prefix: wamr-plugin
           use-fallback: false
           fail-on-cache-miss: true
           path: |
@@ -232,6 +233,7 @@ jobs:
         uses: komastudios/actions-cache-gcs/restore@v1
         with:
           bucket: ${{ vars.CACHE_BUCKET }}
+          prefix: wamr-plugin
           use-fallback: false
           fail-on-cache-miss: true
           path: binaryen-install

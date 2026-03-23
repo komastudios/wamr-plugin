@@ -58,6 +58,7 @@ jobs:
         uses: komastudios/actions-cache-gcs@v1
         with:
           bucket: ${{ vars.CACHE_BUCKET }}
+          prefix: wamr-plugin
           use-fallback: false
           path: binaryen-install
           key: binaryen-${{ matrix.name }}-${{ steps.version.outputs.sha }}
