@@ -85,20 +85,13 @@ if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Android|iOS|Emscripten")
     set(WAMR_DESKTOP_BUILD TRUE)
 endif()
 
-# ---------- Third-party static libraries (LZ4, xxHash) ----------
-# Built as static libs with hidden visibility, linked into the wamr shared lib.
-# add_subdirectory MUST happen BEFORE the WAMR include() below (same reason as binaryen).
+# ---------- Third-party static libraries (for tests / static builds) ----------
 
 function(add_third_party_library dir)
     set(BUILD_SHARED OFF)
     set(BUILD_TESTING OFF)
     add_subdirectory(${dir} EXCLUDE_FROM_ALL)
 endfunction()
-
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    add_third_party_library(third_party/lz4)
-    add_third_party_library(third_party/xxhash)
-endif()
 
 # ---------- Binaryen (desktop only) ----------
 # IMPORTANT: add_subdirectory MUST happen BEFORE the WAMR include() below,
@@ -208,7 +201,7 @@ endif()
 
 # Emscripten: WAMR cannot run inside WASM — build stubs only.
 if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/wamr_host_natives.c)
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c)
     add_compile_definitions(WAMR_STUB_ONLY)
 else()
     # WAMR's runtime_lib.cmake requires WAMR_BUILD_PLATFORM to be set.
@@ -251,7 +244,7 @@ else()
     # NOTE: This include() calls include_directories() globally — that's why
     # binaryen's add_subdirectory must come before this point.
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/wamr_host_natives.c ${WAMR_RUNTIME_LIB_SOURCE})
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c ${WAMR_RUNTIME_LIB_SOURCE})
     find_package(Threads REQUIRED)
 endif()
 
@@ -274,12 +267,12 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
 
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
 
-    # Link third-party static libraries (host natives for WASM modules).
-    # xxhash include dir must come BEFORE lz4's (lz4 bundles an older xxhash.h without XXH3).
-    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-        target_include_directories(${TARGET_NAME} BEFORE PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/xxhash)
-        target_link_libraries(${TARGET_NAME} PRIVATE lz4-static xxhash-static)
+    if(LIB_TYPE STREQUAL "STATIC")
+        # Static builds (mobile): the consumer links LZ4/xxHash separately.
+        # WAMR_HOST_NATIVES_STATIC makes the wrappers call extern symbols directly.
+        if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+            target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_HOST_NATIVES_STATIC)
+        endif()
     endif()
 
     if(LIB_TYPE STREQUAL "STATIC")
@@ -295,7 +288,7 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
             target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
         endif()
         if(UNIX)
-            target_link_libraries(${TARGET_NAME} PRIVATE m)
+            target_link_libraries(${TARGET_NAME} PRIVATE m dl)
         endif()
         if(WIN32)
             target_link_libraries(${TARGET_NAME} PRIVATE ntdll)

@@ -67,7 +67,7 @@ bool         wamr_register_natives(const char *module_name, void *symbols, uint3
 /* Full WAMR implementation                                           */
 /* ------------------------------------------------------------------ */
 #include "wasm_export.h"
-#include "wamr_host_natives.h"
+#include "host_natives/host_natives.h"
 
 /* Internal wrapper: keeps the malloc'd WASM buffer alive alongside the module
  * (WAMR references the buffer for the lifetime of the loaded module). */
