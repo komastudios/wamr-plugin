@@ -67,6 +67,7 @@ bool         wamr_register_natives(const char *module_name, void *symbols, uint3
 /* Full WAMR implementation                                           */
 /* ------------------------------------------------------------------ */
 #include "wasm_export.h"
+#include "wamr_host_natives.h"
 
 /* Internal wrapper: keeps the malloc'd WASM buffer alive alongside the module
  * (WAMR references the buffer for the lifetime of the loaded module). */
@@ -86,7 +87,10 @@ typedef struct {
 
 bool wamr_init(void)
 {
-    return wasm_runtime_init();
+    if (!wasm_runtime_init())
+        return false;
+    wamr_host_natives_init();
+    return true;
 }
 
 void wamr_destroy(void)

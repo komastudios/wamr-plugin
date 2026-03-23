@@ -193,7 +193,7 @@ endif()
 
 # Emscripten: WAMR cannot run inside WASM — build stubs only.
 if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c)
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/wamr_host_natives.c)
     add_compile_definitions(WAMR_STUB_ONLY)
 else()
     # WAMR's runtime_lib.cmake requires WAMR_BUILD_PLATFORM to be set.
@@ -236,7 +236,7 @@ else()
     # NOTE: This include() calls include_directories() globally — that's why
     # binaryen's add_subdirectory must come before this point.
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c ${WAMR_RUNTIME_LIB_SOURCE})
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/wamr_host_natives.c ${WAMR_RUNTIME_LIB_SOURCE})
     find_package(Threads REQUIRED)
 endif()
 
@@ -272,7 +272,7 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
             target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
         endif()
         if(UNIX)
-            target_link_libraries(${TARGET_NAME} PRIVATE m)
+            target_link_libraries(${TARGET_NAME} PRIVATE m dl)
         endif()
         if(WIN32)
             target_link_libraries(${TARGET_NAME} PRIVATE ntdll)
