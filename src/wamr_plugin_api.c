@@ -93,10 +93,7 @@ typedef struct {
 
 bool wamr_init(void)
 {
-    if (!wasm_runtime_init())
-        return false;
-    wamr_host_natives_init();
-    return true;
+    return wasm_runtime_init();
 }
 
 void wamr_destroy(void)
