@@ -17,6 +17,8 @@ option(BUILD_FAST_JIT    "Enable fast JIT"                                OFF)
 option(BUILD_JIT         "Enable LLVM JIT (requires LLVM)"                OFF)
 option(BUILD_AOT         "Enable AOT execution"                           OFF)
 
+set(WAMR_LIB_SUFFIX "" CACHE STRING "Variant suffix for output library name (e.g. -fast-interp)")
+
 # ---------- Deterministic build flags (matches lz4/xxHash/BLAKE3 pattern) ----------
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
@@ -258,9 +260,9 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
 
     if(LIB_TYPE STREQUAL "STATIC")
-        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr-static")
+        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
     else()
-        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr")
+        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr${WAMR_LIB_SUFFIX}")
         target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_UNITY_EXPORT)
         if(WIN32)
             target_compile_definitions(${TARGET_NAME} PUBLIC WAMR_UNITY_IMPORT)
