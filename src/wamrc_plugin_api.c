@@ -1,4 +1,4 @@
-#include "wamrc_unity_api.h"
+#include "wamrc_plugin_api.h"
 
 #include <stdio.h>
 #include <string.h>

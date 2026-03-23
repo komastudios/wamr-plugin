@@ -1,12 +1,12 @@
 /*
- * test_wamr.c — Smoke test for the WAMR Unity thin wrapper.
+ * test_wamr.c — Smoke test for the WAMR plugin thin wrapper.
  *
  * Loads a WASM module (assembled from add.wat by binaryen's wasm-as at
  * build time, then embedded as a C header via cmake/embed_file.cmake)
  * and exercises every public API function.
  */
 
-#include "wamr_unity_api.h"
+#include "wamr_plugin_api.h"
 #include "generated_add_wasm.h" /* generated: provides add_wasm[] and add_wasm_size */
 
 #include <stdio.h>

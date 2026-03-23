@@ -1,11 +1,11 @@
 /*
- * test_wamr_compiler.c — Smoke test for the WAMR AOT compiler Unity wrapper.
+ * test_wamr_compiler.c — Smoke test for the WAMR AOT compiler plugin wrapper.
  *
  * Exercises every public wamrc_* API function: init, version, high-level
  * compile, low-level load/emit/unload, and NULL-safety checks.
  */
 
-#include "wamrc_unity_api.h"
+#include "wamrc_plugin_api.h"
 #include "generated_add_wasm.h" /* generated: provides add_wasm[] and add_wasm_size */
 
 #include <stdio.h>

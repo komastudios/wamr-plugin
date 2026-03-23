@@ -193,7 +193,7 @@ endif()
 
 # Emscripten: WAMR cannot run inside WASM — build stubs only.
 if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    set(WAMR_UNITY_SOURCES src/wamr_unity_api.c)
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c)
     add_compile_definitions(WAMR_STUB_ONLY)
 else()
     # WAMR's runtime_lib.cmake requires WAMR_BUILD_PLATFORM to be set.
@@ -236,12 +236,12 @@ else()
     # NOTE: This include() calls include_directories() globally — that's why
     # binaryen's add_subdirectory must come before this point.
     include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
-    set(WAMR_UNITY_SOURCES src/wamr_unity_api.c ${WAMR_RUNTIME_LIB_SOURCE})
+    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c ${WAMR_RUNTIME_LIB_SOURCE})
     find_package(Threads REQUIRED)
 endif()
 
 function(add_wamr_library TARGET_NAME LIB_TYPE)
-    add_library(${TARGET_NAME} ${LIB_TYPE} ${WAMR_UNITY_SOURCES})
+    add_library(${TARGET_NAME} ${LIB_TYPE} ${WAMR_PLUGIN_SOURCES})
 
     target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -263,9 +263,9 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
         set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
     else()
         set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr${WAMR_LIB_SUFFIX}")
-        target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_UNITY_EXPORT)
+        target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_PLUGIN_EXPORT)
         if(WIN32)
-            target_compile_definitions(${TARGET_NAME} PUBLIC WAMR_UNITY_IMPORT)
+            target_compile_definitions(${TARGET_NAME} PUBLIC WAMR_PLUGIN_IMPORT)
         endif()
 
         if(TARGET Threads::Threads)
@@ -294,7 +294,7 @@ else()
     add_wamr_library(wamr-static STATIC)
 endif()
 
-install(FILES src/wamr_unity_api.h DESTINATION include)
+install(FILES src/wamr_plugin_api.h DESTINATION include)
 
 
 
@@ -359,21 +359,21 @@ if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         if(NOT BUILD_SHARED)
             message(FATAL_ERROR "WAMR_ENABLE_AOT_MONOLITH=ON requires BUILD_SHARED=ON")
         endif()
-        target_sources(wamr PRIVATE src/wamrc_unity_api.c)
+        target_sources(wamr PRIVATE src/wamrc_plugin_api.c)
         target_link_libraries(wamr PRIVATE aotclib vmlib-compiler)
     else()
         # Separate wamr_compiler shared library
-        add_library(wamr_compiler SHARED src/wamrc_unity_api.c)
+        add_library(wamr_compiler SHARED src/wamrc_plugin_api.c)
         target_include_directories(wamr_compiler PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${WAMR_ROOT_DIR}/core/iwasm/include
             ${LLVM_INCLUDE_DIRS})
-        target_compile_definitions(wamr_compiler PRIVATE WAMR_UNITY_EXPORT ${WAMRC_COMPILE_DEFS})
+        target_compile_definitions(wamr_compiler PRIVATE WAMR_PLUGIN_EXPORT ${WAMRC_COMPILE_DEFS})
         set_property(TARGET wamr_compiler PROPERTY C_VISIBILITY_PRESET hidden)
         set_target_properties(wamr_compiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
         if(WIN32)
-            target_compile_definitions(wamr_compiler PUBLIC WAMR_UNITY_IMPORT)
+            target_compile_definitions(wamr_compiler PUBLIC WAMR_PLUGIN_IMPORT)
         endif()
 
         target_link_libraries(wamr_compiler PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
@@ -390,7 +390,7 @@ if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
             RUNTIME DESTINATION bin)
     endif()
 
-    install(FILES src/wamrc_unity_api.h DESTINATION include)
+    install(FILES src/wamrc_plugin_api.h DESTINATION include)
 endif()
 
 # ---------- Test WASM module assembly ----------
@@ -466,7 +466,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
         else()
             add_executable(test_wamr_compiler
                 tests/test_wamr_compiler.c
-                src/wamrc_unity_api.c
+                src/wamrc_plugin_api.c
                 ${ADD_WASM_HDR})
             target_include_directories(test_wamr_compiler PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}/src

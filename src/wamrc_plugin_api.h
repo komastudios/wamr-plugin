@@ -1,5 +1,5 @@
 /*
- * wamrc_unity_api.h — Thin C wrapper around WAMR's AOT compiler for Unity.
+ * wamrc_plugin_api.h — Thin C wrapper around WAMR's AOT compiler.
  *
  * Enables AOT compilation of .wasm → .aot from the Unity Editor via P/Invoke.
  * The compiler statically links LLVM and is Editor-only (desktop platforms).
@@ -9,8 +9,8 @@
  * LLVM cannot re-initialize after shutdown, so we never call LLVMShutdown.
  */
 
-#ifndef WAMRC_UNITY_API_H
-#define WAMRC_UNITY_API_H
+#ifndef WAMRC_PLUGIN_API_H
+#define WAMRC_PLUGIN_API_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -21,14 +21,14 @@ extern "C" {
 
 /* --- DLL export/import macros --- */
 #if defined(_WIN32)
-    #if defined(WAMR_UNITY_EXPORT)
+    #if defined(WAMR_PLUGIN_EXPORT)
         #define WAMR_API __declspec(dllexport)
-    #elif defined(WAMR_UNITY_IMPORT)
+    #elif defined(WAMR_PLUGIN_IMPORT)
         #define WAMR_API __declspec(dllimport)
     #else
         #define WAMR_API
     #endif
-#elif defined(WAMR_UNITY_EXPORT)
+#elif defined(WAMR_PLUGIN_EXPORT)
     #define WAMR_API __attribute__((visibility("default")))
 #else
     #define WAMR_API
@@ -83,4 +83,4 @@ WAMR_API void             wamrc_unload(wamrc_compiler_t compiler);
 }
 #endif
 
-#endif /* WAMRC_UNITY_API_H */
+#endif /* WAMRC_PLUGIN_API_H */

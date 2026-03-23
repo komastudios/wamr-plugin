@@ -1,5 +1,5 @@
 /*
- * wamr_unity_api.h — Thin C wrapper around WAMR for Unity P/Invoke.
+ * wamr_plugin_api.h — Thin C wrapper around WAMR for P/Invoke.
  *
  * This is NOT a generic WAMR binding. It exposes only what the replay
  * serialization layer needs: load a .wasm module, call exported functions
@@ -9,8 +9,8 @@
  * wamr_instance_t must happen on the same thread (Unity main thread).
  */
 
-#ifndef WAMR_UNITY_API_H
-#define WAMR_UNITY_API_H
+#ifndef WAMR_PLUGIN_API_H
+#define WAMR_PLUGIN_API_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -21,14 +21,14 @@ extern "C" {
 
 /* --- DLL export/import macros --- */
 #if defined(_WIN32)
-    #if defined(WAMR_UNITY_EXPORT)
+    #if defined(WAMR_PLUGIN_EXPORT)
         #define WAMR_API __declspec(dllexport)
-    #elif defined(WAMR_UNITY_IMPORT)
+    #elif defined(WAMR_PLUGIN_IMPORT)
         #define WAMR_API __declspec(dllimport)
     #else
         #define WAMR_API
     #endif
-#elif defined(WAMR_UNITY_EXPORT)
+#elif defined(WAMR_PLUGIN_EXPORT)
     #define WAMR_API __attribute__((visibility("default")))
 #else
     #define WAMR_API
@@ -118,4 +118,4 @@ WAMR_API int32_t  wamr_get_running_mode(wamr_instance_t instance);
 }
 #endif
 
-#endif /* WAMR_UNITY_API_H */
+#endif /* WAMR_PLUGIN_API_H */

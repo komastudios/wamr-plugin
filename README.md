@@ -16,7 +16,7 @@ Unity native plugin wrapping [WAMR](https://github.com/bytecodealliance/wasm-mic
 - **Binaryen** is built on desktop only. Its `wasm-as` tool is used at build time to assemble `.wat` test modules, and the shared library is distributed for runtime use.
 - The **Emscripten/WebGL** build produces stub-only WAMR bindings (WAMR-in-WASM is not meaningful; browser-native WASM is used instead).
 
-## WAMR Runtime API (`wamr_unity_api.h`)
+## WAMR Runtime API (`wamr_plugin_api.h`)
 
 ### Global lifecycle
 
@@ -66,7 +66,7 @@ Modes: `1` = Interpreter, `2` = Fast JIT, `3` = LLVM JIT, `4` = Multi-Tier JIT.
 
 The default running mode is global, but can be overridden per-instance without restarting the runtime.
 
-## AOT Compiler API (`wamrc_unity_api.h`)
+## AOT Compiler API (`wamrc_plugin_api.h`)
 
 Desktop/Editor-only API for ahead-of-time compilation of `.wasm` to `.aot` files.
 
