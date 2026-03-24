@@ -366,6 +366,12 @@ if(BUILD_SHARED)
         target_link_libraries(iwasm PRIVATE libiwasm)
         if(WIN32)
             target_link_libraries(iwasm PRIVATE ntdll)
+        elseif(APPLE)
+            set_target_properties(iwasm PROPERTIES
+                INSTALL_RPATH "@loader_path;@loader_path/../lib")
+        else()
+            set_target_properties(iwasm PROPERTIES
+                INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib")
         endif()
         install(TARGETS iwasm DESTINATION bin)
     endif()
