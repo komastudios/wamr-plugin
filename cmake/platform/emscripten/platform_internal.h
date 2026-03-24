@@ -37,6 +37,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+#include <poll.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +82,10 @@ typedef sem_t korp_sem;
 typedef int os_file_handle;
 typedef DIR *os_dir_stream;
 typedef int os_raw_file_handle;
+
+typedef struct pollfd os_poll_file_handle;
+typedef nfds_t os_nfds_t;
+typedef struct timespec os_timespec;
 
 static inline os_file_handle
 os_get_invalid_handle(void)
