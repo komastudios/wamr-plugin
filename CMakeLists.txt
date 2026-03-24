@@ -229,10 +229,10 @@ if(NOT DEFINED WAMR_BUILD_PLATFORM)
         set(WAMR_BUILD_PLATFORM "darwin")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
         # Custom platform layer: avoids WASI type conflicts and unsupported
-        # signal/pthread features.  See cmake/platform/emscripten/.
+        # signal/pthread features.  See src/platform/emscripten/.
         set(WAMR_BUILD_PLATFORM "emscripten")
         set(SHARED_PLATFORM_CONFIG
-            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform/emscripten/shared_platform.cmake)
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/emscripten/shared_platform.cmake)
     else()
         string(TOLOWER ${CMAKE_SYSTEM_NAME} WAMR_BUILD_PLATFORM)
     endif()
@@ -353,7 +353,12 @@ if(BUILD_SHARED)
     set_install_target(wamr)
 
     if (BUILD_LAUNCHER)
-        add_executable(iwasm ${WAMR_ROOT_DIR}/product-mini/platforms/${WAMR_BUILD_PLATFORM}/main.c 
+        if(WIN32)
+            set(IWASM_MAIN_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/platform/windows/iwasm_main.c)
+        else()
+            set(IWASM_MAIN_SOURCE ${WAMR_ROOT_DIR}/product-mini/platforms/${WAMR_BUILD_PLATFORM}/main.c)
+        endif()
+        add_executable(iwasm ${IWASM_MAIN_SOURCE}
             ${UNCOMMON_SHARED_SOURCE}
             ${PLATFORM_SHARED_SOURCE}
             ${UTILS_SHARED_SOURCE}
@@ -579,7 +584,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
 
     add_test(NAME test_wamr COMMAND test_wamr)
 
-    if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED AND TARGET iwasm AND NOT WIN32)
+    if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED AND TARGET iwasm)
         add_test(
             NAME test_native_lib
             COMMAND $<TARGET_FILE:iwasm>
