@@ -329,7 +329,7 @@ jobs:
           arm64_dir=dist-arm64/macos-arm64-${{ matrix.variant }}
           x64_dir=dist-x64/macos-x64-${{ matrix.variant }}
           out_dir=dist/macos-universal-${{ matrix.variant }}
-          mkdir -p "$out_dir/lib" "$out_dir/include"
+          mkdir -p "$out_dir/lib" "$out_dir/bin" "$out_dir/include"
           # Combine each .dylib and .a found in arm64 dist
           for f in "$arm64_dir"/lib/*.dylib "$arm64_dir"/lib/*.a; do
             [ -f "$f" ] || continue
@@ -340,6 +340,19 @@ jobs:
               lipo -info "$out_dir/lib/$base"
             else
               cp "$f" "$out_dir/lib/$base"
+              echo "copy (arm64 only): $base"
+            fi
+          done
+          # Combine executables in bin/
+          for f in "$arm64_dir"/bin/*; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f")
+            if [ -f "$x64_dir/bin/$base" ]; then
+              lipo -create "$f" "$x64_dir/bin/$base" -output "$out_dir/bin/$base"
+              echo "lipo: $base"
+              lipo -info "$out_dir/bin/$base"
+            else
+              cp "$f" "$out_dir/bin/$base"
               echo "copy (arm64 only): $base"
             fi
           done
