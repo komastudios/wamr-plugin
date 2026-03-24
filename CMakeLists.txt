@@ -8,7 +8,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(BUILD_SHARED "Build shared library" ON)
 option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
 option(BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
-option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
+option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" OFF)
 option(BUILD_LIBHOST_NATIVE "Build host_native shared library for iwasm --native-lib" ON)
 
 # Execution mode options (see https://bytecodealliance.github.io/wamr.dev/blog/introduction-to-wamr-running-modes/)
