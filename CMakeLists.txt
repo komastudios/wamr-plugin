@@ -244,11 +244,13 @@ if(NOT DEFINED WAMR_BUILD_TARGET)
     endif()
 endif()
 
-# Emscripten: disable features that require signal handling / pthread_kill.
-# These CMake variables are consumed by WAMR's config_common.cmake.
+# Emscripten: disable features unavailable on wasm32 (signal handling,
+# native arch assembly).  These CMake variables are consumed by WAMR's
+# config_common.cmake and iwasm_common.cmake.
 if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
     set(WAMR_DISABLE_HW_BOUND_CHECK 1)
     set(WAMR_DISABLE_WAKEUP_BLOCKING_OP 1)
+    set(WAMR_BUILD_INVOKE_NATIVE_GENERAL 1)
 endif()
 
 # NOTE: This include() calls include_directories() globally — that's why
