@@ -205,7 +205,11 @@ if(NOT DEFINED WAMR_BUILD_PLATFORM)
     if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
         set(WAMR_BUILD_PLATFORM "darwin")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-        set(WAMR_BUILD_PLATFORM "linux")
+        # Custom platform layer: avoids WASI type conflicts and unsupported
+        # signal/pthread features.  See cmake/platform/emscripten/.
+        set(WAMR_BUILD_PLATFORM "emscripten")
+        set(SHARED_PLATFORM_CONFIG
+            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform/emscripten/shared_platform.cmake)
     else()
         string(TOLOWER ${CMAKE_SYSTEM_NAME} WAMR_BUILD_PLATFORM)
     endif()
@@ -238,6 +242,13 @@ if(NOT DEFINED WAMR_BUILD_TARGET)
             set(WAMR_BUILD_TARGET "AARCH64")
         endif()
     endif()
+endif()
+
+# Emscripten: disable features that require signal handling / pthread_kill.
+# These CMake variables are consumed by WAMR's config_common.cmake.
+if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+    set(WAMR_DISABLE_HW_BOUND_CHECK 1)
+    set(WAMR_DISABLE_WAKEUP_BLOCKING_OP 1)
 endif()
 
 # NOTE: This include() calls include_directories() globally — that's why
