@@ -246,7 +246,7 @@ jobs:
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
+          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/${{ matrix.artifact }}
           ${{ matrix.jit_flags || '' }}
           ${{ matrix.llvm && '-DBUILD_AOT_COMPILER=ON' || '' }}
           ${{ matrix.desktop && format('-DBINARYEN_ROOT={0}/binaryen-install', github.workspace) || '' }}
@@ -274,7 +274,7 @@ jobs:
           emcmake cmake -S . -B build
           -GNinja
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
+          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/${{ matrix.artifact }}
 
       # --- Build / Test / Install ---
 
@@ -288,7 +288,7 @@ jobs:
 
       - name: Install (Standard)
         if: "!matrix.ios"
-        run: cmake --install build --config Release --prefix dist
+        run: cmake --install build --config Release --prefix dist/${{ matrix.artifact }}
 
       - name: Install (iOS)
         if: matrix.ios
@@ -326,22 +326,25 @@ jobs:
 
       - name: Create universal binaries
         run: |
-          mkdir -p dist/lib dist/include
+          arm64_dir=dist-arm64/macos-arm64-${{ matrix.variant }}
+          x64_dir=dist-x64/macos-x64-${{ matrix.variant }}
+          out_dir=dist/macos-universal-${{ matrix.variant }}
+          mkdir -p "$out_dir/lib" "$out_dir/include"
           # Combine each .dylib and .a found in arm64 dist
-          for f in dist-arm64/lib/*.dylib dist-arm64/lib/*.a; do
+          for f in "$arm64_dir"/lib/*.dylib "$arm64_dir"/lib/*.a; do
             [ -f "$f" ] || continue
             base=$(basename "$f")
-            if [ -f "dist-x64/lib/$base" ]; then
-              lipo -create "$f" "dist-x64/lib/$base" -output "dist/lib/$base"
+            if [ -f "$x64_dir/lib/$base" ]; then
+              lipo -create "$f" "$x64_dir/lib/$base" -output "$out_dir/lib/$base"
               echo "lipo: $base"
-              lipo -info "dist/lib/$base"
+              lipo -info "$out_dir/lib/$base"
             else
-              cp "$f" "dist/lib/$base"
+              cp "$f" "$out_dir/lib/$base"
               echo "copy (arm64 only): $base"
             fi
           done
           # Copy headers from arm64 (identical across architectures)
-          cp -R dist-arm64/include/* dist/include/ 2>/dev/null || true
+          cp -R "$arm64_dir"/include/* "$out_dir/include/" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v6
         with:

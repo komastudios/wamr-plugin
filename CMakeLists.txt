@@ -349,7 +349,7 @@ else()
     target_sources(wamr-static PRIVATE ${WAMR_PLUGIN_SOURCES})
 
     target_compile_definitions(wamr-static PRIVATE WAMR_HOST_NATIVES_STATIC)
-    set_target_properties(wamr-static PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
+    set_target_properties(wamr-static PROPERTIES OUTPUT_NAME "wamr-static")
 
     set_install_target(wamr-static)
 endif()
