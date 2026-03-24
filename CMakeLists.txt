@@ -350,6 +350,9 @@ if(BUILD_SHARED)
             ${UTILS_SHARED_SOURCE}
             )
         target_link_libraries(iwasm PRIVATE libiwasm)
+        if(WIN32)
+            target_link_libraries(iwasm PRIVATE ntdll)
+        endif()
         install(TARGETS iwasm DESTINATION bin)
     endif()
 else()
@@ -454,12 +457,14 @@ if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
     add_subdirectory(cmake/aotclib)
 
     if(WAMR_ENABLE_AOT_MONOLITH)
-        # Monolith mode: link AOT compiler into the main wamr shared library
+        # Monolith mode: link AOT compiler into libiwasm (runtime) and add
+        # the plugin API wrapper to wamr.  LLVM must live in libiwasm to
+        # avoid duplicate LLVM registration when wamr links libiwasm.
         if(NOT BUILD_SHARED)
             message(FATAL_ERROR "WAMR_ENABLE_AOT_MONOLITH=ON requires BUILD_SHARED=ON")
         endif()
+        target_link_libraries(libiwasm PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
         target_sources(wamr PRIVATE src/wamrc_plugin_api.c)
-        target_link_libraries(wamr PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
     else()
         # Separate wamr_compiler shared library
         add_library(wamr_compiler SHARED src/wamrc_plugin_api.c)
