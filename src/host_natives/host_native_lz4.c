@@ -94,6 +94,12 @@ static NativeSymbol s_lz4_symbols[] = {
     { "LZ4_compressBound",    (void *)native_LZ4_compressBound,    "(i)i",    NULL },
 };
 
+uint32_t host_native_lz4_get_symbols(NativeSymbol **p_symbols)
+{
+    *p_symbols = s_lz4_symbols;
+    return sizeof(s_lz4_symbols) / sizeof(NativeSymbol);
+}
+
 int host_native_lz4_init(const char *lib_path)
 {
     int err = 0;

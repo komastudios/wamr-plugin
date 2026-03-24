@@ -9,6 +9,7 @@ option(BUILD_SHARED "Build shared library" ON)
 option(USE_MSVC_STATIC_RUNTIME "Use MSVC static runtime" OFF)
 option(BUILD_AOT_COMPILER "Build AOT compiler (requires LLVM)" OFF)
 option(WAMR_ENABLE_AOT_MONOLITH "Link AOT compiler into main wamr shared library" ON)
+option(BUILD_LIBHOST_NATIVE "Build host_native shared library for iwasm --native-lib" ON)
 
 # Execution mode options (see https://bytecodealliance.github.io/wamr.dev/blog/introduction-to-wamr-running-modes/)
 option(BUILD_INTERP      "Enable interpreter"                             ON)
@@ -16,6 +17,8 @@ option(BUILD_FAST_INTERP "Use fast interpreter (incompatible with fast JIT)" ON)
 option(BUILD_FAST_JIT    "Enable fast JIT"                                OFF)
 option(BUILD_JIT         "Enable LLVM JIT (requires LLVM)"                OFF)
 option(BUILD_AOT         "Enable AOT execution"                           OFF)
+
+option(BUILD_LAUNCHER "Build iwasm executable"                            ON)
 
 set(WAMR_LIB_SUFFIX "" CACHE STRING "Variant suffix for output library name (e.g. -fast-interp)")
 
@@ -54,16 +57,19 @@ endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
     set(BUILD_SHARED OFF)
+    set(BUILD_LAUNCHER OFF)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
     set(CMAKE_C_FLAGS_RELEASE "-O2 -g1 -DNDEBUG")
     add_compile_options(-fsigned-char)
     add_link_options("-Wl,-z,max-page-size=16384")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
     set(BUILD_SHARED OFF)
+    set(BUILD_LAUNCHER OFF)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
     set(CMAKE_C_FLAGS_RELEASE "-O2 -g1 -DNDEBUG")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
     set(BUILD_SHARED OFF)
+    set(BUILD_LAUNCHER OFF)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
     set(CMAKE_C_FLAGS_RELEASE "-O2 -g1 -DNDEBUG")
 endif()
@@ -92,6 +98,14 @@ function(add_third_party_library dir)
     set(BUILD_TESTING OFF)
     add_subdirectory(${dir} EXCLUDE_FROM_ALL)
 endfunction()
+
+# ---------- LZ4 / xxHash / BLAKE3 (for host_native shared library) ----------
+
+if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED AND WAMR_DESKTOP_BUILD)
+    add_third_party_library(third_party/lz4)
+    add_third_party_library(third_party/xxhash)
+    add_third_party_library(third_party/blake3/c)
+endif()
 
 # ---------- Binaryen (desktop only) ----------
 # IMPORTANT: add_subdirectory MUST happen BEFORE the WAMR include() below,
@@ -256,13 +270,24 @@ endif()
 # NOTE: This include() calls include_directories() globally — that's why
 # binaryen's add_subdirectory must come before this point.
 include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
-set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c src/host_natives/host_native_blake3.c ${WAMR_RUNTIME_LIB_SOURCE})
+
+include(${WAMR_ROOT_DIR}/core/shared/utils/shared_utils.cmake)
+include(${WAMR_ROOT_DIR}/core/shared/utils/uncommon/shared_uncommon.cmake)
+
+set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c src/host_natives/host_native_blake3.c)
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
     find_package(Threads REQUIRED)
 endif()
 
+function(set_install_target TARGET_NAME)
+    install(TARGETS ${TARGET_NAME}
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)
+endfunction()
+
 function(add_wamr_library TARGET_NAME LIB_TYPE)
-    add_library(${TARGET_NAME} ${LIB_TYPE} ${WAMR_PLUGIN_SOURCES})
+    add_library(${TARGET_NAME} ${LIB_TYPE} ${WAMR_RUNTIME_LIB_SOURCE})
 
     target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -277,51 +302,91 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
     endif()
 
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
-
-    if(LIB_TYPE STREQUAL "STATIC")
-        # Static builds (mobile/Emscripten): the consumer links LZ4/xxHash separately.
-        # WAMR_HOST_NATIVES_STATIC makes the wrappers call extern symbols directly.
-        target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_HOST_NATIVES_STATIC)
-    endif()
-
-    if(LIB_TYPE STREQUAL "STATIC")
-        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
-    else()
-        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "wamr${WAMR_LIB_SUFFIX}")
-        target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_PLUGIN_EXPORT)
-        if(WIN32)
-            target_compile_definitions(${TARGET_NAME} PUBLIC WAMR_PLUGIN_IMPORT)
-        endif()
-
-        if(TARGET Threads::Threads)
-            target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
-        endif()
-        if(UNIX)
-            target_link_libraries(${TARGET_NAME} PRIVATE m dl)
-        endif()
-        if(WIN32)
-            target_link_libraries(${TARGET_NAME} PRIVATE ntdll)
-        endif()
-        if(WAMR_BUILD_JIT)
-            target_link_libraries(${TARGET_NAME} PRIVATE ${WAMR_LLVM_LIBS})
-        endif()
-    endif()
-
-    install(TARGETS ${TARGET_NAME}
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin)
 endfunction()
 
 if(BUILD_SHARED)
-    add_wamr_library(wamr SHARED)
+    add_wamr_library(libiwasm SHARED)
+    set_target_properties(libiwasm PROPERTIES OUTPUT_NAME "iwasm")
+
+    if(TARGET Threads::Threads)
+        target_link_libraries(libiwasm PRIVATE Threads::Threads)
+    endif()
+    if(UNIX)
+        target_link_libraries(libiwasm PRIVATE m dl)
+    endif()
+    if(WIN32)
+        target_link_libraries(libiwasm PRIVATE ntdll)
+    endif()
+    if(WAMR_BUILD_JIT)
+        target_link_libraries(libiwasm PRIVATE ${WAMR_LLVM_LIBS})
+    endif()
+
+    add_library(wamr SHARED ${WAMR_PLUGIN_SOURCES})
+    set_property(TARGET wamr PROPERTY C_VISIBILITY_PRESET hidden)
+
+    set_target_properties(wamr PROPERTIES OUTPUT_NAME "wamr")
+    target_compile_definitions(wamr PRIVATE WAMR_PLUGIN_EXPORT)
+    if(WIN32)
+        target_compile_definitions(wamr PUBLIC WAMR_PLUGIN_IMPORT)
+    endif()
+    target_link_libraries(wamr PRIVATE libiwasm)
+
+    set_install_target(libiwasm)
+    set_install_target(wamr)
+
+    if (BUILD_LAUNCHER)
+        add_executable(iwasm ${WAMR_ROOT_DIR}/product-mini/platforms/${WAMR_BUILD_PLATFORM}/main.c 
+            ${UNCOMMON_SHARED_SOURCE}
+            ${PLATFORM_SHARED_SOURCE}
+            ${UTILS_SHARED_SOURCE}
+            )
+        target_link_libraries(iwasm PRIVATE libiwasm)
+        install(TARGETS iwasm DESTINATION bin)
+    endif()
 else()
     add_wamr_library(wamr-static STATIC)
+
+    target_sources(wamr-static PRIVATE ${WAMR_PLUGIN_SOURCES})
+
+    target_compile_definitions(wamr-static PRIVATE WAMR_HOST_NATIVES_STATIC)
+    set_target_properties(wamr-static PROPERTIES OUTPUT_NAME "wamr-static${WAMR_LIB_SUFFIX}")
+
+    set_install_target(wamr-static)
 endif()
 
 install(FILES src/wamr_plugin_api.h DESTINATION include)
 
+# ---------- host_native shared library (for iwasm --native-lib) ----------
 
+if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED AND WAMR_DESKTOP_BUILD)
+    set(HOST_NATIVE_SOURCES
+        src/host_natives/host_native_lib.c
+        src/host_natives/host_native_lz4.c
+        src/host_natives/host_native_xxhash.c
+        src/host_natives/host_native_blake3.c)
+
+    add_library(host_native SHARED ${HOST_NATIVE_SOURCES})
+    set_target_properties(host_native PROPERTIES OUTPUT_NAME "host_native")
+    target_include_directories(host_native PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(host_native PRIVATE WAMR_HOST_NATIVES_STATIC HOST_NATIVE_EXPORT_SYMBOLS)
+    set_property(TARGET host_native PROPERTY C_VISIBILITY_PRESET hidden)
+    target_link_libraries(host_native PRIVATE lz4-static xxhash-static blake3 libiwasm)
+
+    # Only export get_native_lib — hide all statically-linked lz4/xxhash/blake3 symbols.
+    if(APPLE)
+        target_link_options(host_native PRIVATE
+            "LINKER:-exported_symbol,_get_native_lib")
+    elseif(UNIX)
+        set(_HOST_NATIVE_VERSION_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/host_native.map)
+        file(WRITE ${_HOST_NATIVE_VERSION_SCRIPT}
+            "{ global: get_native_lib; local: *; };\n")
+        target_link_options(host_native PRIVATE
+            "LINKER:--version-script,${_HOST_NATIVE_VERSION_SCRIPT}")
+    endif()
+
+    set_install_target(host_native)
+endif()
 
 # ---------- AOT compiler shared library (desktop only, requires LLVM) ----------
 
@@ -453,6 +518,19 @@ if(WAMR_DESKTOP_BUILD)
         DEPENDS ${ADD_WASM_BIN}
         COMMENT "Embedding add.wasm as C header"
     )
+
+    if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED)
+        set(NATIVE_LIB_TEST_WASM ${CMAKE_CURRENT_BINARY_DIR}/native_lib_test.wasm)
+        add_custom_command(
+            OUTPUT  ${NATIVE_LIB_TEST_WASM}
+            COMMAND ${_WASM_AS_CMD}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tests/native_lib_test.wat
+                    -o ${NATIVE_LIB_TEST_WASM}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/native_lib_test.wat ${_WASM_AS_DEP}
+            COMMENT "Assembling native_lib_test.wat -> native_lib_test.wasm"
+        )
+        add_custom_target(native_lib_test_wasm ALL DEPENDS ${NATIVE_LIB_TEST_WASM})
+    endif()
 endif()
 
 # ---------- Tests ----------
@@ -477,6 +555,14 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING AND WAMR_DESKTOP_BUILD)
     endif()
 
     add_test(NAME test_wamr COMMAND test_wamr)
+
+    if(BUILD_LIBHOST_NATIVE AND BUILD_SHARED AND TARGET iwasm AND NOT WIN32)
+        add_test(
+            NAME test_native_lib
+            COMMAND $<TARGET_FILE:iwasm>
+                    --native-lib=$<TARGET_FILE:host_native>
+                    ${NATIVE_LIB_TEST_WASM})
+    endif()
 
     if(BUILD_AOT_COMPILER)
         if(WAMR_ENABLE_AOT_MONOLITH)

@@ -80,6 +80,12 @@ static NativeSymbol s_xxhash_symbols[] = {
     { "XXH3_64bits", (void *)native_XXH3_64bits, "(ii)I",  NULL },
 };
 
+uint32_t host_native_xxhash_get_symbols(NativeSymbol **p_symbols)
+{
+    *p_symbols = s_xxhash_symbols;
+    return sizeof(s_xxhash_symbols) / sizeof(NativeSymbol);
+}
+
 int host_native_xxhash_init(const char *lib_path)
 {
     int err = 0;

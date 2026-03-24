@@ -178,6 +178,12 @@ static NativeSymbol s_blake3_symbols[] = {
     { "blake3_hasher_reset",          (void *)native_blake3_hasher_reset,          "(i)",    NULL },
 };
 
+uint32_t host_native_blake3_get_symbols(NativeSymbol **p_symbols)
+{
+    *p_symbols = s_blake3_symbols;
+    return sizeof(s_blake3_symbols) / sizeof(NativeSymbol);
+}
+
 int host_native_blake3_init(const char *lib_path)
 {
     int err = 0;
