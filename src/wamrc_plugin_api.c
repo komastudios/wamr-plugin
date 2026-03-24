@@ -4,56 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ------------------------------------------------------------------ */
-/* Stub-only build (platforms where AOT compiler is not available)     */
-/* ------------------------------------------------------------------ */
-#ifdef WAMR_STUB_ONLY
-
-bool wamrc_init(void) { return false; }
-void wamrc_destroy(void) { }
-const char *wamrc_get_version_string(void) { return "stub (AOT compiler not available)"; }
-const char *wamrc_get_last_error(void) { return "AOT compiler not available"; }
-void wamrc_options_init_default(wamrc_options_t *opts) { (void)opts; }
-
-uint8_t *wamrc_compile(const uint8_t *wasm_bytes, uint32_t wasm_size,
-                       const wamrc_options_t *options,
-                       uint32_t *out_aot_size,
-                       char *error_buf, uint32_t error_buf_size)
-{
-    (void)wasm_bytes; (void)wasm_size; (void)options; (void)out_aot_size;
-    if (error_buf && error_buf_size > 0)
-        snprintf(error_buf, error_buf_size, "AOT compiler not available on this platform");
-    return NULL;
-}
-
-void wamrc_free_aot_file(uint8_t *aot_bytes) { (void)aot_bytes; }
-
-wamrc_compiler_t wamrc_load(const uint8_t *wasm_bytes, uint32_t wasm_size,
-                            char *error_buf, uint32_t error_buf_size)
-{
-    (void)wasm_bytes; (void)wasm_size;
-    if (error_buf && error_buf_size > 0)
-        snprintf(error_buf, error_buf_size, "AOT compiler not available on this platform");
-    return NULL;
-}
-
-uint8_t *wamrc_emit(wamrc_compiler_t compiler, const wamrc_options_t *options,
-                    uint32_t *out_aot_size,
-                    char *error_buf, uint32_t error_buf_size)
-{
-    (void)compiler; (void)options; (void)out_aot_size;
-    if (error_buf && error_buf_size > 0)
-        snprintf(error_buf, error_buf_size, "AOT compiler not available on this platform");
-    return NULL;
-}
-
-void wamrc_unload(wamrc_compiler_t compiler) { (void)compiler; }
-
-#else /* !WAMR_STUB_ONLY — real implementation */
-
-/* ------------------------------------------------------------------ */
-/* Full AOT compiler implementation                                   */
-/* ------------------------------------------------------------------ */
 #include "wasm_export.h"
 #include "aot_export.h"
 #include "llvm-c/Core.h" /* LLVMGetVersion */
@@ -347,5 +297,3 @@ void wamrc_unload(wamrc_compiler_t compiler)
     free(w->wasm_buf);
     free(w);
 }
-
-#endif /* WAMR_STUB_ONLY */

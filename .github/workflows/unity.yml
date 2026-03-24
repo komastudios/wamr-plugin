@@ -270,7 +270,11 @@ jobs:
 
       - name: Configure CMake (Emscripten)
         if: matrix.emscripten
-        run: emcmake cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
+        run: >-
+          emcmake cmake -S . -B build
+          -GNinja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist
 
       # --- Build / Test / Install ---
 

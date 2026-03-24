@@ -4,10 +4,6 @@
 
 #include "host_native_lz4.h"
 
-#ifdef WAMR_STUB_ONLY
-int host_native_lz4_init(const char *lib_path) { (void)lib_path; return 0; }
-#else
-
 #include "wasm_export.h"
 #include <stddef.h>
 
@@ -112,5 +108,3 @@ int host_native_lz4_init(const char *lib_path)
         err = 1;
     return err;
 }
-
-#endif /* WAMR_STUB_ONLY */

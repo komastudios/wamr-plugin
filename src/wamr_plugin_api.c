@@ -4,71 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ------------------------------------------------------------------ */
-/* Stub-only build (Emscripten / platforms where WAMR is meaningless) */
-/* ------------------------------------------------------------------ */
-#ifdef WAMR_STUB_ONLY
-
-bool wamr_init(void) { return false; }
-void wamr_destroy(void) { }
-const char *wamr_get_version_string(void) { return "stub (WAMR not available)"; }
-int wamr_init_native_lz4(const char *p) { (void)p; return 0; }
-int wamr_init_native_xxhash(const char *p) { (void)p; return 0; }
-int wamr_init_native_blake3(const char *p) { (void)p; return 0; }
-
-wamr_module_t wamr_load_module(const uint8_t *wasm_bytes, uint32_t size,
-                               char *error_buf, uint32_t error_buf_size)
-{
-    if (error_buf && error_buf_size > 0)
-        snprintf(error_buf, error_buf_size, "WAMR not available on this platform");
-    return NULL;
-}
-
-void wamr_unload_module(wamr_module_t module) { (void)module; }
-
-wamr_instance_t wamr_create_instance(wamr_module_t module, uint32_t stack_size,
-                                     uint32_t heap_size, char *error_buf,
-                                     uint32_t error_buf_size)
-{
-    (void)module; (void)stack_size; (void)heap_size;
-    if (error_buf && error_buf_size > 0)
-        snprintf(error_buf, error_buf_size, "WAMR not available on this platform");
-    return NULL;
-}
-
-void         wamr_destroy_instance(wamr_instance_t inst) { (void)inst; }
-wamr_func_t  wamr_find_function(wamr_instance_t inst, const char *n)
-    { (void)inst; (void)n; return NULL; }
-bool         wamr_call(wamr_instance_t inst, wamr_func_t f, uint32_t c, uint32_t *v)
-    { (void)inst; (void)f; (void)c; (void)v; return false; }
-const char  *wamr_get_exception(wamr_instance_t inst)
-    { (void)inst; return "WAMR not available on this platform"; }
-uint32_t     wamr_module_malloc(wamr_instance_t inst, uint32_t sz)
-    { (void)inst; (void)sz; return 0; }
-void         wamr_module_free(wamr_instance_t inst, uint32_t p)
-    { (void)inst; (void)p; }
-bool         wamr_write_memory(wamr_instance_t inst, uint32_t p,
-                               const void *d, uint32_t sz)
-    { (void)inst; (void)p; (void)d; (void)sz; return false; }
-bool         wamr_read_memory(wamr_instance_t inst, uint32_t p,
-                              void *d, uint32_t sz)
-    { (void)inst; (void)p; (void)d; (void)sz; return false; }
-bool         wamr_validate_memory(wamr_instance_t inst, uint32_t p, uint32_t sz)
-    { (void)inst; (void)p; (void)sz; return false; }
-bool         wamr_is_running_mode_supported(int32_t mode) { (void)mode; return false; }
-bool         wamr_set_default_running_mode(int32_t mode) { (void)mode; return false; }
-bool         wamr_set_running_mode(wamr_instance_t inst, int32_t mode)
-    { (void)inst; (void)mode; return false; }
-int32_t      wamr_get_running_mode(wamr_instance_t inst)
-    { (void)inst; return 0; }
-bool         wamr_register_natives(const char *module_name, void *symbols, uint32_t count)
-    { (void)module_name; (void)symbols; (void)count; return false; }
-
-#else /* !WAMR_STUB_ONLY — real implementation */
-
-/* ------------------------------------------------------------------ */
-/* Full WAMR implementation                                           */
-/* ------------------------------------------------------------------ */
 #include "wasm_export.h"
 #include "host_natives/host_natives.h"
 #include "host_natives/host_native_lz4.h"
@@ -379,5 +314,3 @@ bool wamr_register_natives(const char *module_name,
                                          (NativeSymbol *)native_symbols,
                                          n_native_symbols);
 }
-
-#endif /* WAMR_STUB_ONLY */

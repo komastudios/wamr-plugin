@@ -8,10 +8,6 @@
 
 #include "host_native_blake3.h"
 
-#ifdef WAMR_STUB_ONLY
-int host_native_blake3_init(const char *lib_path) { (void)lib_path; return 0; }
-#else
-
 #include "wasm_export.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -196,5 +192,3 @@ int host_native_blake3_init(const char *lib_path)
         err = 1;
     return err;
 }
-
-#endif /* WAMR_STUB_ONLY */

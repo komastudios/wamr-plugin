@@ -199,52 +199,52 @@ endif()
 
 # ---------- Build WAMR library targets ----------
 
-# Emscripten: WAMR cannot run inside WASM — build stubs only.
-if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c src/host_natives/host_native_blake3.c)
-    add_compile_definitions(WAMR_STUB_ONLY)
-else()
-    # WAMR's runtime_lib.cmake requires WAMR_BUILD_PLATFORM to be set.
-    # (Auto-detection only exists in WAMR's root CMakeLists.txt, which we skip.)
-    if(NOT DEFINED WAMR_BUILD_PLATFORM)
-        if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
-            set(WAMR_BUILD_PLATFORM "darwin")
-        else()
-            string(TOLOWER ${CMAKE_SYSTEM_NAME} WAMR_BUILD_PLATFORM)
-        endif()
+# WAMR's runtime_lib.cmake requires WAMR_BUILD_PLATFORM to be set.
+# (Auto-detection only exists in WAMR's root CMakeLists.txt, which we skip.)
+if(NOT DEFINED WAMR_BUILD_PLATFORM)
+    if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
+        set(WAMR_BUILD_PLATFORM "darwin")
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+        set(WAMR_BUILD_PLATFORM "linux")
+    else()
+        string(TOLOWER ${CMAKE_SYSTEM_NAME} WAMR_BUILD_PLATFORM)
     endif()
+endif()
 
-    # WAMR's target arch auto-detection only checks arm64|aarch64 and then
-    # falls back to pointer size, which picks X86_64/X86_32 when cross-
-    # compiling for ARM. On macOS with CMAKE_OSX_ARCHITECTURES, the host
-    # CMAKE_SYSTEM_PROCESSOR (arm64 on Apple Silicon) overrides the target.
-    # Set WAMR_BUILD_TARGET explicitly for all cross-compilation scenarios.
-    if(NOT DEFINED WAMR_BUILD_TARGET)
-        if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
+# WAMR's target arch auto-detection only checks arm64|aarch64 and then
+# falls back to pointer size, which picks X86_64/X86_32 when cross-
+# compiling for ARM. On macOS with CMAKE_OSX_ARCHITECTURES, the host
+# CMAKE_SYSTEM_PROCESSOR (arm64 on Apple Silicon) overrides the target.
+# Set WAMR_BUILD_TARGET explicitly for all cross-compilation scenarios.
+if(NOT DEFINED WAMR_BUILD_TARGET)
+    if(${CMAKE_SYSTEM_NAME} MATCHES "iOS")
+        set(WAMR_BUILD_TARGET "AARCH64")
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Android")
+        if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
             set(WAMR_BUILD_TARGET "AARCH64")
-        elseif(${CMAKE_SYSTEM_NAME} MATCHES "Android")
-            if(CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
-                set(WAMR_BUILD_TARGET "AARCH64")
-            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
-                set(WAMR_BUILD_TARGET "ARM")
-            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
-                set(WAMR_BUILD_TARGET "X86_64")
-            elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
-                set(WAMR_BUILD_TARGET "X86_32")
-            endif()
-        elseif(APPLE AND DEFINED CMAKE_OSX_ARCHITECTURES)
-            if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
-                set(WAMR_BUILD_TARGET "X86_64")
-            elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
-                set(WAMR_BUILD_TARGET "AARCH64")
-            endif()
+        elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+            set(WAMR_BUILD_TARGET "ARM")
+        elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+            set(WAMR_BUILD_TARGET "X86_64")
+        elseif(CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
+            set(WAMR_BUILD_TARGET "X86_32")
+        endif()
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
+        set(WAMR_BUILD_TARGET "X86_32")
+    elseif(APPLE AND DEFINED CMAKE_OSX_ARCHITECTURES)
+        if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+            set(WAMR_BUILD_TARGET "X86_64")
+        elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+            set(WAMR_BUILD_TARGET "AARCH64")
         endif()
     endif()
+endif()
 
-    # NOTE: This include() calls include_directories() globally — that's why
-    # binaryen's add_subdirectory must come before this point.
-    include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
-    set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c src/host_natives/host_native_blake3.c ${WAMR_RUNTIME_LIB_SOURCE})
+# NOTE: This include() calls include_directories() globally — that's why
+# binaryen's add_subdirectory must come before this point.
+include(${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
+set(WAMR_PLUGIN_SOURCES src/wamr_plugin_api.c src/host_natives/host_natives.c src/host_natives/host_native_lz4.c src/host_natives/host_native_xxhash.c src/host_natives/host_native_blake3.c ${WAMR_RUNTIME_LIB_SOURCE})
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
     find_package(Threads REQUIRED)
 endif()
 
@@ -254,10 +254,8 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
     target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-    if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-        target_include_directories(${TARGET_NAME} PRIVATE
-            ${WAMR_ROOT_DIR}/core/iwasm/include)
-    endif()
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${WAMR_ROOT_DIR}/core/iwasm/include)
 
     # LLVM JIT: add LLVM include dirs and link libs
     if(WAMR_BUILD_JIT)
@@ -268,11 +266,9 @@ function(add_wamr_library TARGET_NAME LIB_TYPE)
     set_property(TARGET ${TARGET_NAME} PROPERTY C_VISIBILITY_PRESET hidden)
 
     if(LIB_TYPE STREQUAL "STATIC")
-        # Static builds (mobile): the consumer links LZ4/xxHash separately.
+        # Static builds (mobile/Emscripten): the consumer links LZ4/xxHash separately.
         # WAMR_HOST_NATIVES_STATIC makes the wrappers call extern symbols directly.
-        if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
-            target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_HOST_NATIVES_STATIC)
-        endif()
+        target_compile_definitions(${TARGET_NAME} PRIVATE WAMR_HOST_NATIVES_STATIC)
     endif()
 
     if(LIB_TYPE STREQUAL "STATIC")
