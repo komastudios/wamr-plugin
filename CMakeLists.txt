@@ -463,8 +463,13 @@ if(BUILD_AOT_COMPILER AND WAMR_DESKTOP_BUILD)
         if(NOT BUILD_SHARED)
             message(FATAL_ERROR "WAMR_ENABLE_AOT_MONOLITH=ON requires BUILD_SHARED=ON")
         endif()
-        target_link_libraries(libiwasm PRIVATE aotclib vmlib-compiler ${WAMR_LLVM_LIBS})
         target_sources(wamr PRIVATE src/wamrc_plugin_api.c)
+        target_link_libraries(wamr PRIVATE aotclib vmlib-compiler)
+        # Link LLVM directly only when libiwasm doesn't already provide it (JIT).
+        # Otherwise aotclib resolves LLVM symbols through the libiwasm dependency.
+        if(NOT WAMR_BUILD_JIT)
+            target_link_libraries(wamr PRIVATE ${WAMR_LLVM_LIBS})
+        endif()
     else()
         # Separate wamr_compiler shared library
         add_library(wamr_compiler SHARED src/wamrc_plugin_api.c)
