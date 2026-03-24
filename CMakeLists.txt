@@ -330,6 +330,15 @@ if(BUILD_SHARED)
         target_link_libraries(libiwasm PRIVATE ${WAMR_LLVM_LIBS})
     endif()
 
+    # Shared libraries that depend on libiwasm need to find it in the same
+    # directory at runtime (Unity plugins, standalone deployment, etc.).
+    if(APPLE)
+        set(CMAKE_INSTALL_RPATH "@loader_path")
+    elseif(UNIX)
+        set(CMAKE_INSTALL_RPATH "$ORIGIN")
+    endif()
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+
     add_library(wamr SHARED ${WAMR_PLUGIN_SOURCES})
     set_property(TARGET wamr PROPERTY C_VISIBILITY_PRESET hidden)
 
