@@ -274,6 +274,8 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Emscripten")
     set(WAMR_DISABLE_HW_BOUND_CHECK 1)
     set(WAMR_DISABLE_WAKEUP_BLOCKING_OP 1)
     set(WAMR_BUILD_INVOKE_NATIVE_GENERAL 1)
+    # WASI types from WAMR conflict with Emscripten's own wasi/api.h headers.
+    set(WAMR_BUILD_LIBC_WASI 0)
 endif()
 
 # NOTE: This include() calls include_directories() globally — that's why
